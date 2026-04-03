@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cv_maker/pages/auth/check_email_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'check_email_page.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -10,11 +11,49 @@ class ForgotPasswordPage extends StatefulWidget {
 
 class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final _emailController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     super.dispose();
+  }
+
+  Future<void> _sendReset() async {
+    if (_emailController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Masukkan email dulu'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(
+        email: _emailController.text.trim(),
+      );
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CheckEmailPage(email: _emailController.text.trim()),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      String message = 'Terjadi kesalahan';
+      if (e.code == 'user-not-found') message = 'Email tidak terdaftar';
+      if (e.code == 'invalid-email') message = 'Email tidak valid';
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -28,10 +67,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           icon: const Icon(Icons.arrow_back_ios, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        // title: const Text(
-        //   'Kembali',
-        //   style: TextStyle(fontSize: 16, color: Color(0xFF1565C0)),
-        // ),
         titleSpacing: -8,
         foregroundColor: const Color(0xFF1565C0),
       ),
@@ -58,7 +93,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               ),
             ),
             const SizedBox(height: 28),
-
             const Text(
               'Alamat email',
               style: TextStyle(
@@ -68,19 +102,17 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               ),
             ),
             const SizedBox(height: 8),
-
             TextField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               style: const TextStyle(fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'email@example.com',
-                hintStyle:
-                    TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
                 filled: true,
                 fillColor: Colors.grey.shade50,
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: Colors.grey.shade200),
@@ -97,22 +129,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               ),
             ),
             const SizedBox(height: 24),
-
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => CheckEmailPage(
-                        email: _emailController.text.isNotEmpty
-                            ? _emailController.text
-                            : 'email@example.com',
-                      ),
-                    ),
-                  );
-                },
+                onPressed: _isLoading ? null : _sendReset,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1565C0),
                   foregroundColor: Colors.white,
@@ -122,10 +142,22 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
-                  'Send Instructions',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        'Send Instructions',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
               ),
             ),
           ],

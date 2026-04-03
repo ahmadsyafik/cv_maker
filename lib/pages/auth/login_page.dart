@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'register_page.dart';
-import 'package:cv_maker/pages/auth/forgot_password_page.dart';
+import 'forgot_password_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -14,12 +16,79 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _rememberMe = false;
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _login() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Email dan password wajib diisi'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(context, '/main', (route) => false);
+    } on FirebaseAuthException catch (e) {
+      String message = 'Terjadi kesalahan';
+      if (e.code == 'user-not-found') message = 'Email tidak ditemukan';
+      if (e.code == 'wrong-password') message = 'Password salah';
+      if (e.code == 'invalid-email') message = 'Email tidak valid';
+      if (e.code == 'invalid-credential') message = 'Email atau password salah';
+      if (e.code == 'user-disabled') message = 'Akun telah dinonaktifkan';
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loginWithGoogle() async {
+    setState(() => _isLoading = true);
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      await FirebaseAuth.instance.signInWithCredential(credential);
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(context, '/main', (route) => false);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal login dengan Google: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -33,10 +102,6 @@ class _LoginPageState extends State<LoginPage> {
           icon: const Icon(Icons.arrow_back_ios, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        // title: const Text(
-        //   'Kembali',
-        //   style: TextStyle(fontSize: 16, color: Color(0xFF1565C0)),
-        // ),
         titleSpacing: -8,
         foregroundColor: const Color(0xFF1565C0),
       ),
@@ -55,16 +120,12 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
             const SizedBox(height: 28),
-
-            // Email field
             _buildTextField(
               controller: _emailController,
               hint: 'email@example.com',
               keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 14),
-
-            // Password field
             _buildTextField(
               controller: _passwordController,
               hint: 'Password',
@@ -82,8 +143,6 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
             const SizedBox(height: 12),
-
-            // Remember me + Forgot password
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -121,12 +180,10 @@ class _LoginPageState extends State<LoginPage> {
               ],
             ),
             const SizedBox(height: 24),
-
-            // Masuk button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {},
+                onPressed: _isLoading ? null : _login,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1565C0),
                   foregroundColor: Colors.white,
@@ -136,15 +193,25 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
-                  'Masuk',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        'Masuk',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
               ),
             ),
             const SizedBox(height: 24),
-
-            // Divider
             Row(
               children: [
                 Expanded(child: Divider(color: Colors.grey.shade300)),
@@ -159,12 +226,8 @@ class _LoginPageState extends State<LoginPage> {
               ],
             ),
             const SizedBox(height: 20),
-
-            // Google button
             _buildGoogleButton(),
-
             const SizedBox(height: 32),
-            // No account yet
             Center(
               child: GestureDetector(
                 onTap: () {
@@ -226,8 +289,7 @@ class _LoginPageState extends State<LoginPage> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide:
-              const BorderSide(color: Color(0xFF1565C0), width: 1.5),
+          borderSide: const BorderSide(color: Color(0xFF1565C0), width: 1.5),
         ),
       ),
     );
@@ -237,7 +299,7 @@ class _LoginPageState extends State<LoginPage> {
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton.icon(
-        onPressed: () {},
+        onPressed: _isLoading ? null : _loginWithGoogle,
         icon: const Text(
           'G',
           style: TextStyle(
@@ -256,8 +318,9 @@ class _LoginPageState extends State<LoginPage> {
         ),
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 14),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           side: BorderSide(color: Colors.grey.shade300),
         ),
       ),

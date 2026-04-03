@@ -1,27 +1,38 @@
-import 'dart:io'; // Tambahkan ini
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../state/cv_provider.dart';
+import 'auth/landing_page.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
-              _showSettingsDialog(context);
-            },
+            onPressed: () => _showSettingsDialog(context),
           ),
         ],
       ),
       body: Consumer<CVProvider>(
         builder: (context, cvProvider, child) {
+          // Ambil nama & email dari Firebase Auth jika CVProvider kosong
+          final displayName = cvProvider.fullName.isNotEmpty
+              ? cvProvider.fullName
+              : firebaseUser?.displayName ?? 'Nama Lengkap';
+          final displayEmail = cvProvider.email.isNotEmpty
+              ? cvProvider.email
+              : firebaseUser?.email ?? 'email@example.com';
+          final photoUrl = firebaseUser?.photoURL;
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -40,10 +51,10 @@ class ProfilePage extends StatelessWidget {
                           children: [
                             CircleAvatar(
                               radius: 50,
-                              backgroundImage: cvProvider.profileImage.isNotEmpty
-                                  ? FileImage(File(cvProvider.profileImage))
+                              backgroundImage: photoUrl != null
+                                  ? NetworkImage(photoUrl)
                                   : null,
-                              child: cvProvider.profileImage.isEmpty
+                              child: photoUrl == null
                                   ? const Icon(Icons.person, size: 50)
                                   : null,
                             ),
@@ -58,9 +69,7 @@ class ProfilePage extends StatelessWidget {
                                 child: IconButton(
                                   icon: const Icon(Icons.camera_alt,
                                       color: Colors.white, size: 20),
-                                  onPressed: () {
-                                    // Implementasi edit foto
-                                  },
+                                  onPressed: () {},
                                 ),
                               ),
                             ),
@@ -68,9 +77,7 @@ class ProfilePage extends StatelessWidget {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          cvProvider.fullName.isNotEmpty
-                              ? cvProvider.fullName
-                              : 'Nama Lengkap',
+                          displayName,
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -78,9 +85,7 @@ class ProfilePage extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          cvProvider.email.isNotEmpty
-                              ? cvProvider.email
-                              : 'email@example.com',
+                          displayEmail,
                           style: const TextStyle(color: Colors.grey),
                         ),
                       ],
@@ -101,9 +106,8 @@ class ProfilePage extends StatelessWidget {
                       _buildProfileMenuItem(
                         icon: Icons.person_outline,
                         title: 'Edit Profile',
-                        onTap: () {
-                          _showEditProfileDialog(context);
-                        },
+                        onTap: () =>
+                            _showEditProfileDialog(context, cvProvider),
                       ),
                       const Divider(height: 0),
                       _buildProfileMenuItem(
@@ -112,7 +116,7 @@ class ProfilePage extends StatelessWidget {
                         trailing: Switch(
                           value: true,
                           onChanged: (value) {},
-                          activeThumbColor: Colors.blue, // Ganti dari activeColor
+                          activeThumbColor: Colors.blue,
                         ),
                         onTap: () {},
                       ),
@@ -132,9 +136,7 @@ class ProfilePage extends StatelessWidget {
                       _buildProfileMenuItem(
                         icon: Icons.info_outline,
                         title: 'Tentang Aplikasi',
-                        onTap: () {
-                          _showAboutDialog(context);
-                        },
+                        onTap: () => _showAboutDialog(context),
                       ),
                     ],
                   ),
@@ -146,9 +148,7 @@ class ProfilePage extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: () {
-                      _showLogoutDialog(context);
-                    },
+                    onPressed: () => _showLogoutDialog(context, cvProvider),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       foregroundColor: Colors.red,
@@ -183,8 +183,7 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  void _showEditProfileDialog(BuildContext context) {
-    final cvProvider = context.read<CVProvider>();
+  void _showEditProfileDialog(BuildContext context, CVProvider cvProvider) {
     final nameController = TextEditingController(text: cvProvider.fullName);
     final emailController = TextEditingController(text: cvProvider.email);
     final phoneController = TextEditingController(text: cvProvider.phone);
@@ -229,12 +228,24 @@ class ProfilePage extends StatelessWidget {
             child: const Text('Batal'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               cvProvider.updatePersonalData(
                 fullName: nameController.text,
                 email: emailController.text,
                 phone: phoneController.text,
               );
+              // Update juga di Firestore
+              final uid = FirebaseAuth.instance.currentUser?.uid;
+              if (uid != null) {
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(uid)
+                    .update({
+                  'fullName': nameController.text,
+                  'email': emailController.text,
+                });
+              }
+              if (!context.mounted) return;
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Profile berhasil diperbarui')),
@@ -257,10 +268,7 @@ class ProfilePage extends StatelessWidget {
           children: [
             ListTile(
               title: const Text('Mode Gelap'),
-              trailing: Switch(
-                value: false,
-                onChanged: (value) {},
-              ),
+              trailing: Switch(value: false, onChanged: (value) {}),
             ),
             ListTile(
               title: const Text('Bahasa'),
@@ -309,7 +317,7 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  void _showLogoutDialog(BuildContext context) {
+  void _showLogoutDialog(BuildContext context, CVProvider cvProvider) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -321,10 +329,18 @@ class ProfilePage extends StatelessWidget {
             child: const Text('Batal'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Berhasil logout')),
+              // Reset data CV
+              cvProvider.resetAll();
+              // Logout Firebase
+              await FirebaseAuth.instance.signOut();
+              if (!context.mounted) return;
+              // Kembali ke landing page
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LandingPage()),
+                (route) => false,
               );
             },
             style: ElevatedButton.styleFrom(

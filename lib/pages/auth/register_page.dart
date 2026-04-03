@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:cv_maker/pages/auth/login_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'login_page.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -14,6 +17,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _agreeToTerms = false;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -21,6 +25,112 @@ class _RegisterPageState extends State<RegisterPage> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _register() async {
+    if (_nameController.text.isEmpty ||
+        _emailController.text.isEmpty ||
+        _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Semua field wajib diisi'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    if (_passwordController.text.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password minimal 6 karakter'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final userCredential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      await userCredential.user?.updateDisplayName(_nameController.text.trim());
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .set({
+        'fullName': _nameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'cvData': {},
+      });
+
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(context, '/main', (route) => false);
+    } on FirebaseAuthException catch (e) {
+      String message = 'Terjadi kesalahan';
+      if (e.code == 'email-already-in-use') message = 'Email sudah digunakan';
+      if (e.code == 'weak-password') message = 'Password terlalu lemah';
+      if (e.code == 'invalid-email') message = 'Email tidak valid';
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _registerWithGoogle() async {
+    setState(() => _isLoading = true);
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      final userCredential =
+          await FirebaseAuth.instance.signInWithCredential(credential);
+      final user = userCredential.user!;
+
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (!doc.exists) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'fullName': user.displayName ?? '',
+          'email': user.email ?? '',
+          'createdAt': FieldValue.serverTimestamp(),
+          'cvData': {},
+        });
+      }
+
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(context, '/main', (route) => false);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal daftar dengan Google: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -34,10 +144,6 @@ class _RegisterPageState extends State<RegisterPage> {
           icon: const Icon(Icons.arrow_back_ios, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        // title: const Text(
-        //   'Kembali',
-        //   style: TextStyle(fontSize: 16, color: Color(0xFF1565C0)),
-        // ),
         titleSpacing: -8,
         foregroundColor: const Color(0xFF1565C0),
       ),
@@ -56,16 +162,12 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
             ),
             const SizedBox(height: 28),
-
-            // Name field
             _buildTextField(
               controller: _nameController,
               hint: 'Masukkan nama lengkap',
               icon: Icons.person_outline,
             ),
             const SizedBox(height: 14),
-
-            // Email field
             _buildTextField(
               controller: _emailController,
               hint: 'Masukkan email',
@@ -73,8 +175,6 @@ class _RegisterPageState extends State<RegisterPage> {
               keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 14),
-
-            // Password field
             _buildTextField(
               controller: _passwordController,
               hint: 'Masukkan password',
@@ -93,15 +193,12 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
             ),
             const SizedBox(height: 14),
-
-            // Terms checkbox
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Checkbox(
                   value: _agreeToTerms,
-                  onChanged: (v) =>
-                      setState(() => _agreeToTerms = v ?? false),
+                  onChanged: (v) => setState(() => _agreeToTerms = v ?? false),
                   activeColor: const Color(0xFF1565C0),
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   visualDensity: VisualDensity.compact,
@@ -126,12 +223,10 @@ class _RegisterPageState extends State<RegisterPage> {
               ],
             ),
             const SizedBox(height: 24),
-
-            // Daftar button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _agreeToTerms ? () {} : null,
+                onPressed: (_agreeToTerms && !_isLoading) ? _register : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1565C0),
                   foregroundColor: Colors.white,
@@ -141,15 +236,25 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
-                  'Daftar',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        'Daftar',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
               ),
             ),
             const SizedBox(height: 24),
-
-            // Divider
             Row(
               children: [
                 Expanded(child: Divider(color: Colors.grey.shade300)),
@@ -164,12 +269,8 @@ class _RegisterPageState extends State<RegisterPage> {
               ],
             ),
             const SizedBox(height: 20),
-
-            // Google button
             _buildGoogleButton(),
-
             const SizedBox(height: 32),
-            // Already have account
             Center(
               child: GestureDetector(
                 onTap: () {
@@ -235,8 +336,7 @@ class _RegisterPageState extends State<RegisterPage> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide:
-              const BorderSide(color: Color(0xFF1565C0), width: 1.5),
+          borderSide: const BorderSide(color: Color(0xFF1565C0), width: 1.5),
         ),
       ),
     );
@@ -246,7 +346,7 @@ class _RegisterPageState extends State<RegisterPage> {
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton.icon(
-        onPressed: () {},
+        onPressed: _isLoading ? null : _registerWithGoogle,
         icon: const Text(
           'G',
           style: TextStyle(
@@ -265,8 +365,9 @@ class _RegisterPageState extends State<RegisterPage> {
         ),
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 14),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           side: BorderSide(color: Colors.grey.shade300),
         ),
       ),
