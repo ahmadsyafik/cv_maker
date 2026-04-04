@@ -70,8 +70,48 @@ class _RegisterPageState extends State<RegisterPage> {
         'cvData': {},
       });
 
+      await FirebaseAuth.instance.signOut();
+
       if (!mounted) return;
-      Navigator.pushNamedAndRemoveUntil(context, '/main', (route) => false);
+    showDialog(
+      context: context,
+      barrierDismissible: false, // User gak bisa asal klik luar buat tutup
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green),
+              SizedBox(width: 10),
+              Text('Berhasil!'),
+            ],
+          ),
+          content: const Text('Akun kamu sudah terdaftar. Silahkan masuk untuk mulai membuat CV.'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                // Tutup dialog
+                Navigator.pop(context);
+                
+                // Pindah ke LoginPage
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginPage()),
+                  (route) => false,
+                );
+              },
+              child: const Text(
+                'Masuk Sekarang',
+                style: TextStyle(color: Color(0xFF1565C0), fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
     } on FirebaseAuthException catch (e) {
       String message = 'Terjadi kesalahan';
       if (e.code == 'email-already-in-use') message = 'Email sudah digunakan';
