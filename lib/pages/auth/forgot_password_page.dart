@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Wajib ada ini
 import 'check_email_page.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
@@ -19,11 +19,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     super.dispose();
   }
 
+  // --- FUNGSI RESET PASSWORD ---
   Future<void> _sendReset() async {
-    if (_emailController.text.isEmpty) {
+    final email = _emailController.text.trim();
+
+    if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Masukkan email dulu'),
+          content: Text('Masukkan email kamu dulu ya!'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -33,20 +36,30 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     setState(() => _isLoading = true);
 
     try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(
-        email: _emailController.text.trim(),
-      );
+      // Perintah Firebase untuk kirim email reset
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+
       if (!mounted) return;
+
+      // Jika Berhasil: Pindah ke halaman Check Email
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => CheckEmailPage(email: _emailController.text.trim()),
+          builder: (_) => CheckEmailPage(email: email),
         ),
       );
+      
     } on FirebaseAuthException catch (e) {
+      // Jika Gagal: Tampilkan pesan error spesifik
       String message = 'Terjadi kesalahan';
-      if (e.code == 'user-not-found') message = 'Email tidak terdaftar';
-      if (e.code == 'invalid-email') message = 'Email tidak valid';
+      if (e.code == 'user-not-found') {
+        message = 'Email ini belum terdaftar di database.';
+      } else if (e.code == 'invalid-email') {
+        message = 'Format email kamu salah.';
+      } else if (e.code == 'too-many-requests') {
+        message = 'Terlalu banyak mencoba, tunggu sebentar ya.';
+      }
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message), backgroundColor: Colors.red),
@@ -70,7 +83,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         titleSpacing: -8,
         foregroundColor: const Color(0xFF1565C0),
       ),
-      body: Padding(
+      body: SingleChildScrollView( // Pakai ini biar gak error kalau keyboard muncul
         padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -111,8 +124,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
                 filled: true,
                 fillColor: Colors.grey.shade50,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: Colors.grey.shade200),
@@ -123,8 +135,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide:
-                      const BorderSide(color: Color(0xFF1565C0), width: 1.5),
+                  borderSide: const BorderSide(color: Color(0xFF1565C0), width: 1.5),
                 ),
               ),
             ),
@@ -132,6 +143,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
+                // Tombol mati (null) kalau lagi loading biar gak double-click
                 onPressed: _isLoading ? null : _sendReset,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1565C0),
@@ -153,10 +165,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       )
                     : const Text(
                         'Send Instructions',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                       ),
               ),
             ),
