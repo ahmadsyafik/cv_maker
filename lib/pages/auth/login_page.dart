@@ -136,7 +136,7 @@ class _LoginPageState extends State<LoginPage> {
                   _obscurePassword
                       ? Icons.visibility_off_outlined
                       : Icons.visibility_outlined,
-                  color: Colors.grey,
+                  color: Colors.grey.shade600,
                   size: 20,
                 ),
                 onPressed: () =>
@@ -282,11 +282,11 @@ class _LoginPageState extends State<LoginPage> {
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade200),
+          borderSide: BorderSide(color: Colors.grey.shade400),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade200),
+          borderSide: BorderSide(color: Colors.grey.shade400),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -297,34 +297,26 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildGoogleButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: _isLoading ? null : _loginWithGoogle,
-        icon: const Text(
-          'G',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF4285F4),
+    return Center(
+      child: InkWell(
+        onTap: _isLoading ? null : _loginWithGoogle,
+        borderRadius: BorderRadius.circular(50),
+         child: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.grey.shade500),
+            color: Colors.white,
           ),
-        ),
-        label: const Text(
-          'Google',
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.black87,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          side: BorderSide(color: Colors.grey.shade300),
-        ),
-      ),
-    );
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Image.asset(
+              'assets/images/google_logo.png',
+              ),
+            ),
+            ),
+         )
+        );
   }
 }

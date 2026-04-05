@@ -36,10 +36,6 @@ class _NewPasswordPageState extends State<NewPasswordPage> {
           icon: const Icon(Icons.arrow_back_ios, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        // title: const Text(
-        //   'Kembali',
-        //   style: TextStyle(fontSize: 16, color: Color(0xFF1565C0)),
-        // ),
         titleSpacing: -8,
         foregroundColor: const Color(0xFF1565C0),
       ),
@@ -183,11 +179,11 @@ class _NewPasswordPageState extends State<NewPasswordPage> {
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade200),
+              borderSide: BorderSide(color: Colors.grey.shade400),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade200),
+              borderSide: BorderSide(color: Colors.grey.shade400),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
