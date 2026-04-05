@@ -1,13 +1,19 @@
 import 'dart:io'; // Tambahkan ini
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../state/cv_provider.dart';
+import 'auth/landing_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
+
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Home'),
@@ -20,6 +26,14 @@ class HomePage extends StatelessWidget {
       ),
       body: Consumer<CVProvider>(
         builder: (context, cvProvider, child) {
+           final displayName = cvProvider.fullName.isNotEmpty
+              ? cvProvider.fullName
+              : firebaseUser?.displayName ?? 'Nama Lengkap';
+          final displayEmail = cvProvider.email.isNotEmpty
+              ? cvProvider.email
+              : firebaseUser?.email ?? 'email@example.com';
+          final photoUrl = firebaseUser?.photoURL;
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -50,9 +64,7 @@ class HomePage extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                cvProvider.fullName.isNotEmpty
-                                    ? cvProvider.fullName
-                                    : 'Nama Lengkap',
+                                displayName,
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -60,9 +72,7 @@ class HomePage extends StatelessWidget {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                cvProvider.email.isNotEmpty
-                                    ? cvProvider.email
-                                    : 'email@example.com',
+                                 displayEmail,
                                 style: const TextStyle(color: Colors.grey),
                               ),
                             ],
