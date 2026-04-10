@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'firebase_options.dart';
 import 'state/cv_provider.dart';
 import 'pages/home_page.dart';
@@ -31,12 +32,17 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           primarySwatch: Colors.blue,
           useMaterial3: true,
-          fontFamily: 'Poppins',
-          appBarTheme: const AppBarTheme(
+          textTheme: GoogleFonts.poppinsTextTheme(),
+          appBarTheme: AppBarTheme(
             elevation: 0,
             centerTitle: true,
             backgroundColor: Colors.white,
             foregroundColor: Colors.black,
+            titleTextStyle: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+            ),
           ),
         ),
         home: const LandingPage(),

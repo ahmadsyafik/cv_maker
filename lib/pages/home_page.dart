@@ -1,158 +1,191 @@
-import 'dart:io'; // Tambahkan ini
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../state/cv_provider.dart';
-import 'auth/landing_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-
     final firebaseUser = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text('Home'),
+        backgroundColor: const Color(0xFF1565C0),
+        elevation: 0,
+        centerTitle: true,
+        title: Text(
+          'Beranda',
+          style: GoogleFonts.poppins    (
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_outlined),
+            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
             onPressed: () {},
           ),
         ],
       ),
       body: Consumer<CVProvider>(
         builder: (context, cvProvider, child) {
-           final displayName = cvProvider.fullName.isNotEmpty
+          final displayName = cvProvider.fullName.isNotEmpty
               ? cvProvider.fullName
               : firebaseUser?.displayName ?? 'Nama Lengkap';
           final displayEmail = cvProvider.email.isNotEmpty
               ? cvProvider.email
               : firebaseUser?.email ?? 'email@example.com';
-          final photoUrl = firebaseUser?.photoURL;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Profile Summary Card
-                Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
+                // Profile Card
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 40,
-                          backgroundImage: cvProvider.profileImage.isNotEmpty
-                              ? FileImage(File(cvProvider.profileImage))
-                              : null,
-                          child: cvProvider.profileImage.isEmpty
-                              ? const Icon(Icons.person, size: 40)
-                              : null,
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                displayName,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 32,
+                        backgroundColor: const Color(0xFFE3F2FD),
+                        backgroundImage: cvProvider.profileImage.isNotEmpty
+                            ? FileImage(File(cvProvider.profileImage))
+                            : null,
+                        child: cvProvider.profileImage.isEmpty
+                            ? const Icon(Icons.person,
+                                size: 32, color: Color(0xFF1565C0))
+                            : null,
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              displayName,
+                              style: GoogleFonts.poppins    (
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                 displayEmail,
-                                style: const TextStyle(color: Colors.grey),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              displayEmail,
+                              style: GoogleFonts.poppins    (
+                                fontSize: 13,
+                                color: Colors.grey.shade500,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
 
-                // Progress Card
-                Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
+                // Progress CV Card
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Progress CV',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Progres CV',
+                        style: GoogleFonts.poppins    (
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
                         ),
-                        const SizedBox(height: 12),
-                        LinearProgressIndicator(
+                      ),
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: LinearProgressIndicator(
                           value: cvProvider.cvProgress,
                           backgroundColor: Colors.grey.shade200,
                           valueColor: const AlwaysStoppedAnimation<Color>(
-                            Colors.blue,
+                            Color(0xFF1565C0),
                           ),
                           minHeight: 8,
-                          borderRadius: BorderRadius.circular(4),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '${(cvProvider.cvProgress * 100).toStringAsFixed(0)}% Selesai',
-                          style: const TextStyle(color: Colors.grey),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${(cvProvider.cvProgress * 100).toStringAsFixed(0)}% Selesai',
+                        style: GoogleFonts.poppins    (
+                          fontSize: 12,
+                          color: Colors.grey.shade500,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
 
                 const SizedBox(height: 20),
 
-                // Statistics Cards
-                const Text(
+                Text(
                   'Statistik CV',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                  style: GoogleFonts.poppins    (
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
                   ),
                 ),
                 const SizedBox(height: 12),
+
                 Row(
                   children: [
                     Expanded(
                       child: _buildStatCard(
-                        context,
-                        'Pendidikan',
-                        cvProvider.educations.length.toString(),
-                        Icons.school,
-                        Colors.blue,
+                        title: 'Pendidikan',
+                        value: cvProvider.educations.length.toString(),
+                        icon: Icons.school,
+                        iconColor: const Color(0xFF1565C0),
+                        iconBg: const Color(0xFFE3F2FD),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: _buildStatCard(
-                        context,
-                        'Pengalaman',
-                        cvProvider.experiences.length.toString(),
-                        Icons.work,
-                        Colors.green,
+                        title: 'Pengalaman',
+                        value: cvProvider.experiences.length.toString(),
+                        icon: Icons.work_outline,
+                        iconColor: const Color(0xFF2E7D32),
+                        iconBg: const Color(0xFFE8F5E9),
                       ),
                     ),
                   ],
@@ -162,24 +195,24 @@ class HomePage extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _buildStatCard(
-                        context,
-                        'Skill',
-                        cvProvider.skills.length.toString(),
-                        Icons.code,
-                        Colors.orange,
+                        title: 'Skill',
+                        value: cvProvider.skills.length.toString(),
+                        icon: Icons.star_outline,
+                        iconColor: const Color(0xFFE65100),
+                        iconBg: const Color(0xFFFFF3E0),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: _buildStatCard(
-                        context,
-                        'Total Items',
-                        (cvProvider.educations.length +
-                            cvProvider.experiences.length +
-                            cvProvider.skills.length)
+                        title: 'Total Items',
+                        value: (cvProvider.educations.length +
+                                cvProvider.experiences.length +
+                                cvProvider.skills.length)
                             .toString(),
-                        Icons.folder,
-                        Colors.purple,
+                        icon: Icons.folder_outlined,
+                        iconColor: const Color(0xFF6A1B9A),
+                        iconBg: const Color(0xFFF3E5F5),
                       ),
                     ),
                   ],
@@ -192,41 +225,56 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCard(
-      BuildContext context,
-      String title,
-      String value,
-      IconData icon,
-      Color color,
-      ) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+  Widget _buildStatCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBg,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+      child: Column(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: iconBg,
+              borderRadius: BorderRadius.circular(12),
             ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: const TextStyle(
-                color: Colors.grey,
-                fontSize: 12,
-              ),
+            child: Icon(icon, color: iconColor, size: 24),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: GoogleFonts.poppins    (
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: Colors.black87,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            title,
+            style: GoogleFonts.poppins    (
+              fontSize: 12,
+              color: Colors.grey.shade500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
