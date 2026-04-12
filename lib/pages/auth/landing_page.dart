@@ -147,7 +147,7 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
                             padding: const EdgeInsets.only(top: 38),
                             decoration: BoxDecoration(
                               color: const Color(0xFF285EA4)
-                                  .withValues(alpha: 0.5),
+                                  .withValues(alpha: 0.2),
                               borderRadius: const BorderRadius.only(
                                 topRight: Radius.circular(50),
                               ),
@@ -189,7 +189,7 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
-                                color: Color(0xFF285EA4),
+                                color: Color.fromARGB(255, 12, 53, 106),
                               ),
                             ),
                           ),
