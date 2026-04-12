@@ -1,179 +1,204 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:cv_maker/pages/auth/login_page.dart';
 import 'package:cv_maker/pages/auth/register_page.dart';
 
-class LandingPage extends StatelessWidget {
+class LandingPage extends StatefulWidget {
   const LandingPage({super.key});
+
+  @override
+  State<LandingPage> createState() => _LandingPageState();
+}
+
+class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _setFullscreen();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _setFullscreen();
+    }
+  }
+
+  void _setFullscreen() {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // Background gradient
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF1565C0),
-                  Color(0xFF1976D2),
-                  Color(0xFF0D47A1),
-                ],
-              ),
+          // Background SVG
+          SvgPicture.asset(
+            'assets/background/background.svg',
+            width: double.infinity,
+            height: double.infinity,
+            fit: BoxFit.cover,
+            placeholderBuilder: (context) => Container(
+              color: const Color(0xFF2578AD),
             ),
           ),
 
-          // Decorative circles
-          Positioned(
-            top: -60,
-            right: -40,
-            child: Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.08),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 80,
-            right: 30,
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.10),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 160,
-            right: -30,
-            child: Container(
-              width: 90,
-              height: 90,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.12),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 200,
-            left: -50,
-            child: Container(
-              width: 150,
-              height: 150,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.07),
+          // Overlay gradient
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.2),
+                  Colors.black.withValues(alpha: 0.4),
+                ],
               ),
             ),
           ),
 
           // Content
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Spacer(flex: 2),
-
-                  // Main headline
-                  const Text(
-                    'Selamat Datang\nkembali!',
-                    style: TextStyle(
-                      fontSize: 34,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      height: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Buat CV profesional Anda dalam hitungan menit.\nIsi detail Anda dan buat CV Anda secara instan.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white.withOpacity(0.85),
-                      height: 1.5,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-
-                  const Spacer(flex: 3),
-
-                  // Buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const RegisterPage(),
-                              ),
-                            );
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(
-                                color: Colors.white, width: 1.5),
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+            bottom: false,
+            child: Column(
+              children: [
+                // Teks tepat di tengah layar
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Selamat Datang Kembali!',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 25,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              height: 1.2,
                             ),
                           ),
-                          child: const Text(
-                            'Daftar',
+                          const SizedBox(height: 14),
+                          // Baris 1 — bold
+                          const Text(
+                            'Buat CV profesional Anda dalam hitungan menit',
+                            textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              height: 1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          // Baris 2 — normal, sedikit lebih redup
+                          Text(
+                            'Isi detail Anda dan buat CV Anda secara instan.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.normal,
+                              color: Colors.white.withValues(alpha: 0.8),
+                              height: 1.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Tombol pojok
+                SizedBox(
+                  height: 90,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Tombol DAFTAR — pojok kanan atas
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const RegisterPage(),
+                            ),
+                          ),
+                          child: Container(
+                            alignment: Alignment.topCenter,
+                            padding: const EdgeInsets.only(top: 38),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF285EA4)
+                                  .withValues(alpha: 0.5),
+                              borderRadius: const BorderRadius.only(
+                                topRight: Radius.circular(50),
+                              ),
+                            ),
+                            child: const Text(
+                              'Daftar',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),
                       ),
+
                       const SizedBox(width: 16),
+
+                      // Tombol MASUK — pojok kiri atas
                       Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const LoginPage(),
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: const Color(0xFF1565C0),
-                            elevation: 0,
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                        child: GestureDetector(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const LoginPage(),
                             ),
                           ),
-                          child: const Text(
-                            'Masuk',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                          child: Container(
+                            alignment: Alignment.topCenter,
+                            padding: const EdgeInsets.only(top: 38),
+                            decoration: BoxDecoration(
+                               color: Colors.white.withValues(alpha: 0.5),
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(50),
+                              ),
+                            ),
+                            child: const Text(
+                              'Masuk',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF285EA4),
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 40),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
