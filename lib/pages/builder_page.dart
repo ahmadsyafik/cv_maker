@@ -246,7 +246,7 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
                       radius: 50,
                       backgroundColor: const Color(0xFFE3F2FD),
                       backgroundImage: cv.profileImage.isNotEmpty
-                          ? NetworkImage(cv.profileImage)
+                          ? NetworkImage("${cv.profileImage}&t=${DateTime.now().millisecondsSinceEpoch}")
                           : null,
                       child: cv.profileImage.isEmpty
                           ? const Icon(Icons.person, size: 48, color: _kBlue)
