@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,12 +8,11 @@ import '../models/skill.dart';
 import '../widgets/education_card.dart';
 import '../widgets/experience_card.dart';
 import '../widgets/skill_chip.dart';
+import '../services/storage_service.dart';
 
-// Color constants
 const _kBlue = Color(0xFF1565C0);
 const _kBg = Color(0xFFF5F7FA);
 
-// Shared input decoration 
 InputDecoration _inputDeco(String hint, {IconData? prefix}) => InputDecoration(
       hintText: hint,
       hintStyle: GoogleFonts.poppins(color: Colors.grey.shade400, fontSize: 14),
@@ -46,7 +44,6 @@ InputDecoration _inputDeco(String hint, {IconData? prefix}) => InputDecoration(
       ),
     );
 
-// Primary button 
 Widget _primaryButton(String label, VoidCallback onPressed) => SizedBox(
       width: double.infinity,
       child: ElevatedButton(
@@ -66,7 +63,6 @@ Widget _primaryButton(String label, VoidCallback onPressed) => SizedBox(
       ),
     );
 
-//  BuilderPage
 class BuilderPage extends StatefulWidget {
   const BuilderPage({super.key});
 
@@ -139,7 +135,6 @@ class _BuilderPageState extends State<BuilderPage>
   }
 }
 
-//  Tab 1 – Data Diri
 class PersonalDataTab extends StatefulWidget {
   const PersonalDataTab({super.key});
 
@@ -156,6 +151,7 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
   late TextEditingController _linkedinController;
   late TextEditingController _githubController;
   late TextEditingController _summaryController;
+  bool _isUploadingPhoto = false;
 
   @override
   void initState() {
@@ -182,10 +178,38 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
     super.dispose();
   }
 
-  void _pickImage() {
+  Future<void> _pickImage() async {
+    final storageService = StorageService();
+    final imageFile = await storageService.pickImage(fromCamera: false);
+    if (imageFile == null) return;
+
+    if (!context.mounted) return;
+    setState(() => _isUploadingPhoto = true);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Fitur upload foto akan segera hadir')),
+      const SnackBar(content: Text('Mengupload foto...')),
     );
+
+    final url = await storageService.uploadProfilePhoto(imageFile);
+
+    if (!context.mounted) return;
+    setState(() => _isUploadingPhoto = false);
+
+    if (url != null) {
+      context.read<CVProvider>().updateProfileImage(url);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Foto berhasil diupload!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gagal upload foto, coba lagi.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _savePersonalData() {
@@ -213,20 +237,19 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
         key: _formKey,
         child: Column(
           children: [
-            // Photo picker
             Center(
               child: Stack(
                 children: [
                   Consumer<CVProvider>(
                     builder: (context, cv, _) => CircleAvatar(
+                      key: ValueKey(cv.profileImage),
                       radius: 50,
                       backgroundColor: const Color(0xFFE3F2FD),
                       backgroundImage: cv.profileImage.isNotEmpty
-                          ? FileImage(File(cv.profileImage))
+                          ? NetworkImage(cv.profileImage)
                           : null,
                       child: cv.profileImage.isEmpty
-                          ? const Icon(Icons.person,
-                              size: 48, color: _kBlue)
+                          ? const Icon(Icons.person, size: 48, color: _kBlue)
                           : null,
                     ),
                   ),
@@ -234,7 +257,7 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
                     bottom: 0,
                     right: 0,
                     child: GestureDetector(
-                      onTap: _pickImage,
+                      onTap: _isUploadingPhoto ? null : _pickImage,
                       child: Container(
                         width: 32,
                         height: 32,
@@ -242,8 +265,16 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
                           color: _kBlue,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.camera_alt,
-                            color: Colors.white, size: 18),
+                        child: _isUploadingPhoto
+                            ? const Padding(
+                                padding: EdgeInsets.all(6),
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.camera_alt,
+                                color: Colors.white, size: 18),
                       ),
                     ),
                   ),
@@ -251,18 +282,15 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // Nama Lengkap
             TextFormField(
               controller: _nameController,
               style: GoogleFonts.poppins(fontSize: 14),
-              decoration: _inputDeco('Nama Lengkap', prefix: Icons.person_outline),
+              decoration:
+                  _inputDeco('Nama Lengkap', prefix: Icons.person_outline),
               validator: (v) =>
                   (v == null || v.isEmpty) ? 'Nama lengkap wajib diisi' : null,
             ),
             const SizedBox(height: 12),
-
-            // Email
             TextFormField(
               controller: _emailController,
               style: GoogleFonts.poppins(fontSize: 14),
@@ -275,52 +303,41 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
               },
             ),
             const SizedBox(height: 12),
-
-            // Nomor Telepon
             TextFormField(
               controller: _phoneController,
               style: GoogleFonts.poppins(fontSize: 14),
               keyboardType: TextInputType.phone,
-              decoration: _inputDeco('Nomor Telepon', prefix: Icons.phone_outlined),
+              decoration:
+                  _inputDeco('Nomor Telepon', prefix: Icons.phone_outlined),
             ),
             const SizedBox(height: 12),
-
-            // Alamat
             TextFormField(
               controller: _addressController,
               style: GoogleFonts.poppins(fontSize: 14),
               maxLines: 3,
-              decoration: _inputDeco('Alamat', prefix: Icons.location_on_outlined),
+              decoration:
+                  _inputDeco('Alamat', prefix: Icons.location_on_outlined),
             ),
             const SizedBox(height: 12),
-
-            // Ringkasan
             TextFormField(
               controller: _summaryController,
               style: GoogleFonts.poppins(fontSize: 14),
               maxLines: 3,
-              decoration: _inputDeco(
-                'Ringkasan Profesional (Opsional)',
-              ),
+              decoration: _inputDeco('Ringkasan Profesional (Opsional)'),
             ),
             const SizedBox(height: 12),
-
-            // LinkedIn
             TextFormField(
               controller: _linkedinController,
               style: GoogleFonts.poppins(fontSize: 14),
               decoration: _inputDeco('LinkedIn (Opsional)', prefix: Icons.link),
             ),
             const SizedBox(height: 12),
-
-            // GitHub
             TextFormField(
               controller: _githubController,
               style: GoogleFonts.poppins(fontSize: 14),
               decoration: _inputDeco('GitHub (Opsional)', prefix: Icons.code),
             ),
             const SizedBox(height: 24),
-
             _primaryButton('Simpan Data Diri', _savePersonalData),
             const SizedBox(height: 16),
           ],
@@ -330,9 +347,6 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  Tab 2 – Pendidikan
-// ═══════════════════════════════════════════════════════════════════════════════
 class EducationTab extends StatefulWidget {
   const EducationTab({super.key});
 
@@ -387,7 +401,6 @@ class _EducationTabState extends State<EducationTab> {
       builder: (context, cvProvider, child) {
         return Column(
           children: [
-            // Form section
             Container(
               padding: const EdgeInsets.all(16),
               color: Colors.white,
@@ -402,8 +415,6 @@ class _EducationTabState extends State<EducationTab> {
                           fontSize: 15, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 14),
-
-                    // Nama Universitas
                     TextFormField(
                       controller: _universityController,
                       style: GoogleFonts.poppins(fontSize: 14),
@@ -413,8 +424,6 @@ class _EducationTabState extends State<EducationTab> {
                           : null,
                     ),
                     const SizedBox(height: 12),
-
-                    // Jurusan
                     TextFormField(
                       controller: _majorController,
                       style: GoogleFonts.poppins(fontSize: 14),
@@ -424,8 +433,6 @@ class _EducationTabState extends State<EducationTab> {
                           : null,
                     ),
                     const SizedBox(height: 12),
-
-                    // Tahun
                     Row(
                       children: [
                         Expanded(
@@ -434,9 +441,8 @@ class _EducationTabState extends State<EducationTab> {
                             style: GoogleFonts.poppins(fontSize: 14),
                             keyboardType: TextInputType.number,
                             decoration: _inputDeco('Tahun Mulai'),
-                            validator: (v) => (v == null || v.isEmpty)
-                                ? 'Wajib diisi'
-                                : null,
+                            validator: (v) =>
+                                (v == null || v.isEmpty) ? 'Wajib diisi' : null,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -446,16 +452,13 @@ class _EducationTabState extends State<EducationTab> {
                             style: GoogleFonts.poppins(fontSize: 14),
                             keyboardType: TextInputType.number,
                             decoration: _inputDeco('Tahun Selesai'),
-                            validator: (v) => (v == null || v.isEmpty)
-                                ? 'Wajib diisi'
-                                : null,
+                            validator: (v) =>
+                                (v == null || v.isEmpty) ? 'Wajib diisi' : null,
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
-
-                    // IPK
                     TextFormField(
                       controller: _gpaController,
                       style: GoogleFonts.poppins(fontSize: 14),
@@ -463,14 +466,11 @@ class _EducationTabState extends State<EducationTab> {
                       decoration: _inputDeco('IPK (Opsional)'),
                     ),
                     const SizedBox(height: 16),
-
                     _primaryButton('Tambah Pendidikan', _addEducation),
                   ],
                 ),
               ),
             ),
-
-            // List
             Expanded(
               child: cvProvider.educations.isEmpty
                   ? _emptyState('Belum ada data pendidikan')
@@ -493,9 +493,6 @@ class _EducationTabState extends State<EducationTab> {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  Tab 3 – Pengalaman
-// ═══════════════════════════════════════════════════════════════════════════════
 class ExperienceTab extends StatefulWidget {
   const ExperienceTab({super.key});
 
@@ -548,7 +545,6 @@ class _ExperienceTabState extends State<ExperienceTab> {
       builder: (context, cvProvider, child) {
         return Column(
           children: [
-            // Form
             Container(
               padding: const EdgeInsets.all(16),
               color: Colors.white,
@@ -563,18 +559,15 @@ class _ExperienceTabState extends State<ExperienceTab> {
                           fontSize: 15, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 14),
-
                     TextFormField(
                       controller: _organizationController,
                       style: GoogleFonts.poppins(fontSize: 14),
-                      decoration:
-                          _inputDeco('Nama Organisasi/Perusahaan'),
+                      decoration: _inputDeco('Nama Organisasi/Perusahaan'),
                       validator: (v) => (v == null || v.isEmpty)
                           ? 'Nama organisasi wajib diisi'
                           : null,
                     ),
                     const SizedBox(height: 12),
-
                     TextFormField(
                       controller: _positionController,
                       style: GoogleFonts.poppins(fontSize: 14),
@@ -584,7 +577,6 @@ class _ExperienceTabState extends State<ExperienceTab> {
                           : null,
                     ),
                     const SizedBox(height: 12),
-
                     Row(
                       children: [
                         Expanded(
@@ -593,9 +585,8 @@ class _ExperienceTabState extends State<ExperienceTab> {
                             style: GoogleFonts.poppins(fontSize: 14),
                             keyboardType: TextInputType.number,
                             decoration: _inputDeco('Tahun Mulai'),
-                            validator: (v) => (v == null || v.isEmpty)
-                                ? 'Wajib diisi'
-                                : null,
+                            validator: (v) =>
+                                (v == null || v.isEmpty) ? 'Wajib diisi' : null,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -605,15 +596,13 @@ class _ExperienceTabState extends State<ExperienceTab> {
                             style: GoogleFonts.poppins(fontSize: 14),
                             keyboardType: TextInputType.number,
                             decoration: _inputDeco('Tahun Selesai'),
-                            validator: (v) => (v == null || v.isEmpty)
-                                ? 'Wajib diisi'
-                                : null,
+                            validator: (v) =>
+                                (v == null || v.isEmpty) ? 'Wajib diisi' : null,
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
-
                     TextFormField(
                       controller: _descriptionController,
                       style: GoogleFonts.poppins(fontSize: 14),
@@ -624,14 +613,11 @@ class _ExperienceTabState extends State<ExperienceTab> {
                           : null,
                     ),
                     const SizedBox(height: 16),
-
                     _primaryButton('Tambah Pengalaman', _addExperience),
                   ],
                 ),
               ),
             ),
-
-            // List
             Expanded(
               child: cvProvider.experiences.isEmpty
                   ? _emptyState('Belum ada data pengalaman')
@@ -654,9 +640,6 @@ class _ExperienceTabState extends State<ExperienceTab> {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  Tab 4 – Skill
-// ═══════════════════════════════════════════════════════════════════════════════
 class SkillTab extends StatefulWidget {
   const SkillTab({super.key});
 
@@ -675,7 +658,9 @@ class _SkillTabState extends State<SkillTab> {
 
   void _addSkill() {
     if (_skillController.text.trim().isNotEmpty) {
-      context.read<CVProvider>().addSkill(Skill(name: _skillController.text.trim()));
+      context
+          .read<CVProvider>()
+          .addSkill(Skill(name: _skillController.text.trim()));
       _skillController.clear();
     }
   }
@@ -686,7 +671,6 @@ class _SkillTabState extends State<SkillTab> {
       builder: (context, cvProvider, child) {
         return Column(
           children: [
-            // Input row
             Container(
               padding: const EdgeInsets.all(16),
               color: Colors.white,
@@ -717,8 +701,6 @@ class _SkillTabState extends State<SkillTab> {
                 ],
               ),
             ),
-
-            // Skills wrap
             Expanded(
               child: cvProvider.skills.isEmpty
                   ? _emptyState('Belum ada skill ditambahkan')
@@ -744,7 +726,6 @@ class _SkillTabState extends State<SkillTab> {
   }
 }
 
-// ─── Empty state helper ───────────────────────────────────────────────────────
 Widget _emptyState(String message) => Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -753,8 +734,8 @@ Widget _emptyState(String message) => Center(
           const SizedBox(height: 12),
           Text(
             message,
-            style: GoogleFonts.poppins(
-                fontSize: 14, color: Colors.grey.shade400),
+            style:
+                GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade400),
           ),
         ],
       ),

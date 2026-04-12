@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'firebase_options.dart';
 import 'state/cv_provider.dart';
@@ -45,7 +46,23 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        home: const LandingPage(),
+        home: StreamBuilder<User?>(
+          stream: FirebaseAuth.instance.authStateChanges(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
+            if (snapshot.hasData) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                context.read<CVProvider>().loadFromFirestore();
+              });
+              return const MainNavigation();
+            }
+            return const LandingPage();
+          },
+        ),
         routes: {
           '/main': (context) => const MainNavigation(),
         },
