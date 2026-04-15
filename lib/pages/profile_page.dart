@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../state/cv_provider.dart';
+import '../services/storage_service.dart';
 import 'auth/landing_page.dart';
 
 class ProfilePage extends StatelessWidget {
@@ -24,14 +26,16 @@ class ProfilePage extends StatelessWidget {
       ),
       body: Consumer<CVProvider>(
         builder: (context, cvProvider, child) {
-          // Ambil nama & email dari Firebase Auth jika CVProvider kosong
           final displayName = cvProvider.fullName.isNotEmpty
               ? cvProvider.fullName
               : firebaseUser?.displayName ?? 'Nama Lengkap';
           final displayEmail = cvProvider.email.isNotEmpty
               ? cvProvider.email
               : firebaseUser?.email ?? 'email@example.com';
-          final photoUrl = firebaseUser?.photoURL;
+
+          // Prioritas: foto dari cvProvider (upload manual) > foto dari Google
+          final uploadedPhoto = cvProvider.profileImage;
+          final googlePhoto = firebaseUser?.photoURL;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -51,12 +55,15 @@ class ProfilePage extends StatelessWidget {
                           children: [
                             CircleAvatar(
                               radius: 50,
-                              backgroundImage: photoUrl != null
-                                  ? NetworkImage(photoUrl)
-                                  : null,
-                              child: photoUrl == null
-                                  ? const Icon(Icons.person, size: 50)
-                                  : null,
+                              backgroundImage: uploadedPhoto.isNotEmpty
+                                  ? NetworkImage(uploadedPhoto)
+                                  : googlePhoto != null
+                                      ? NetworkImage(googlePhoto)
+                                      : null,
+                              child:
+                                  uploadedPhoto.isEmpty && googlePhoto == null
+                                      ? const Icon(Icons.person, size: 50)
+                                      : null,
                             ),
                             Positioned(
                               bottom: 0,
@@ -69,7 +76,8 @@ class ProfilePage extends StatelessWidget {
                                 child: IconButton(
                                   icon: const Icon(Icons.camera_alt,
                                       color: Colors.white, size: 20),
-                                  onPressed: () {},
+                                  onPressed: () =>
+                                      _pickAndUploadPhoto(context, cvProvider),
                                 ),
                               ),
                             ),
@@ -169,6 +177,63 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
+  Future<void> _pickAndUploadPhoto(
+      BuildContext context, CVProvider cvProvider) async {
+    final storageService = StorageService();
+
+    // Pilih sumber foto
+    final source = await showModalBottomSheet<bool>(
+      context: context,
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.photo_library),
+            title: const Text('Pilih dari Galeri'),
+            onTap: () => Navigator.pop(context, false),
+          ),
+          ListTile(
+            leading: const Icon(Icons.camera_alt),
+            title: const Text('Ambil Foto'),
+            onTap: () => Navigator.pop(context, true),
+          ),
+        ],
+      ),
+    );
+
+    if (source == null) return;
+
+    final imageFile = await storageService.pickImage(fromCamera: source);
+    if (imageFile == null) return;
+
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Mengupload foto...')),
+    );
+
+    final url = await storageService.uploadProfilePhoto(imageFile);
+
+    if (url != null) {
+      cvProvider.updateProfileImage(url);
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .update({'photoUrl': url});
+      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Foto profil berhasil diperbarui!')),
+      );
+    } else {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gagal upload foto, coba lagi.')),
+      );
+    }
+  }
+
   Widget _buildProfileMenuItem({
     required IconData icon,
     required String title,
@@ -234,7 +299,6 @@ class ProfilePage extends StatelessWidget {
                 email: emailController.text,
                 phone: phoneController.text,
               );
-              // Update juga di Firestore
               final uid = FirebaseAuth.instance.currentUser?.uid;
               if (uid != null) {
                 await FirebaseFirestore.instance
@@ -331,12 +395,9 @@ class ProfilePage extends StatelessWidget {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              // Reset data CV
               cvProvider.resetAll();
-              // Logout Firebase
               await FirebaseAuth.instance.signOut();
               if (!context.mounted) return;
-              // Kembali ke landing page
               Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (_) => const LandingPage()),

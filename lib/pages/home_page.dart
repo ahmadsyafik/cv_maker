@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../state/cv_provider.dart';
+import '../services/storage_service.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -68,7 +69,7 @@ class HomePage extends StatelessWidget {
                         radius: 32,
                         backgroundColor: const Color(0xFFE3F2FD),
                         backgroundImage: cvProvider.profileImage.isNotEmpty
-                            ? FileImage(File(cvProvider.profileImage))
+                            ? NetworkImage("${cvProvider.profileImage}&t=${DateTime.now().millisecondsSinceEpoch}")
                             : null,
                         child: cvProvider.profileImage.isEmpty
                             ? const Icon(Icons.person,
