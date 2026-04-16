@@ -76,7 +76,7 @@ class _PreviewPageState extends State<PreviewPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text('Preview CV'),
+        title: const Text('Pratinjau CV'),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
         actions: [

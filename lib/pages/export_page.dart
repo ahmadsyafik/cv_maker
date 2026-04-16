@@ -26,7 +26,7 @@ class _ExportPageState extends State<ExportPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Export CV'),
+        title: const Text('Ekspor CV'),
         actions: [
           if (_pdfBytes != null)
             IconButton(
@@ -38,7 +38,7 @@ class _ExportPageState extends State<ExportPage> {
             IconButton(
               icon: const Icon(Icons.share),
               onPressed: () => _sharePDF(context),
-              tooltip: 'Share PDF',
+              tooltip: 'Bagikan PDF',
             ),
         ],
       ),
@@ -151,7 +151,7 @@ class _ExportPageState extends State<ExportPage> {
                                     });
                                   },
                                   icon: Icon(_showPreview ? Icons.visibility_off : Icons.visibility),
-                                  label: Text(_showPreview ? 'Sembunyikan Preview' : 'Lihat Preview'),
+                                  label: Text(_showPreview ? 'Sembunyikan Pratinjau' : 'Lihat Pratinjau'),
                                 ),
                               ),
                             ],

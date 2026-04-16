@@ -133,27 +133,27 @@ class _MainNavigationState extends State<MainNavigation> {
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home),
-            label: 'Home',
+            label: 'Beranda',
           ),
           NavigationDestination(
             icon: Icon(Icons.edit_outlined),
             selectedIcon: Icon(Icons.edit),
-            label: 'Builder',
+            label: 'Buat CV',
           ),
           NavigationDestination(
             icon: Icon(Icons.preview_outlined),
             selectedIcon: Icon(Icons.preview),
-            label: 'Preview',
+            label: 'Pratinjau',
           ),
           NavigationDestination(
             icon: Icon(Icons.ios_share_outlined),
             selectedIcon: Icon(Icons.ios_share),
-            label: 'Export',
+            label: 'Ekspor',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outlined),
             selectedIcon: Icon(Icons.person),
-            label: 'Profile',
+            label: 'Profil',
           ),
         ],
       ),

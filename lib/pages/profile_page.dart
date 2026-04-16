@@ -17,7 +17,7 @@ class ProfilePage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: const Text('Profil'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined),
@@ -111,7 +111,7 @@ class ProfilePage extends StatelessWidget {
                     children: [
                       _buildProfileMenuItem(
                         icon: Icons.person_outline,
-                        title: 'Edit Profile',
+                        title: 'Edit Profil',
                         onTap: () => _showEditProfileDialog(context, userProvider),
                       ),
                       const Divider(height: 0),
@@ -246,7 +246,7 @@ class ProfilePage extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Edit Profile'),
+        title: const Text('Edit Profil'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -292,7 +292,7 @@ class ProfilePage extends StatelessWidget {
               if (!context.mounted) return;
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Profile berhasil diperbarui')),
+                const SnackBar(content: Text('Profil berhasil diperbarui')),
               );
             },
             child: const Text('Simpan'),
@@ -310,10 +310,6 @@ class ProfilePage extends StatelessWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              title: const Text('Mode Gelap'),
-              trailing: Switch(value: false, onChanged: (value) {}),
-            ),
             ListTile(
               title: const Text('Bahasa'),
               trailing: const Text('Indonesia'),
