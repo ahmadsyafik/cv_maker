@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -49,6 +50,16 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
+    if (!_agreeToTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Anda harus menyetujui pengelolaan data pribadi'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -73,45 +84,41 @@ class _RegisterPageState extends State<RegisterPage> {
       await FirebaseAuth.instance.signOut();
 
       if (!mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false, // User gak bisa asal klik luar buat tutup
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          title: const Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.green),
-              SizedBox(width: 10),
-              Text('Berhasil!'),
-            ],
-          ),
-          content: const Text('Akun kamu sudah terdaftar. Silahkan masuk untuk mulai membuat CV.'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                // Tutup dialog
-                Navigator.pop(context);
-                
-                // Pindah ke LoginPage
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginPage()),
-                  (route) => false,
-                );
-              },
-              child: const Text(
-                'Masuk Sekarang',
-                style: TextStyle(color: Color(0xFF1565C0), fontWeight: FontWeight.bold),
-              ),
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
             ),
-          ],
-        );
-      },
-    );
-
+            title: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green),
+                SizedBox(width: 10),
+                Text('Berhasil!'),
+              ],
+            ),
+            content: const Text('Akun kamu sudah terdaftar. Silahkan masuk untuk mulai membuat CV.'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginPage()),
+                    (route) => false,
+                  );
+                },
+                child: const Text(
+                  'Masuk Sekarang',
+                  style: TextStyle(color: Color(0xFF1565C0), fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          );
+        },
+      );
     } on FirebaseAuthException catch (e) {
       String message = 'Terjadi kesalahan';
       if (e.code == 'email-already-in-use') message = 'Email sudah digunakan';
@@ -175,169 +182,231 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final whiteContainerHeight = screenHeight * 0.80;
+    final topSvgHeight = screenHeight * 0.35;
+
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        titleSpacing: -8,
-        foregroundColor: const Color(0xFF1565C0),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 8),
-            const Text(
-              'Mulai',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1565C0),
+      body: Stack(
+        children: [
+          // Background SVG (35% bagian atas)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: topSvgHeight,
+            child: SvgPicture.asset(
+              'assets/background/background.svg',
+              width: double.infinity,
+              height: double.infinity,
+              fit: BoxFit.cover,
+            ),
+          ),
+          
+          // Container putih (65% bagian bawah)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: whiteContainerHeight,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(30),
+                  topRight: Radius.circular(30),
+                ),
               ),
             ),
-            const SizedBox(height: 28),
-            _buildTextField(
-              controller: _nameController,
-              hint: 'Masukkan nama lengkap',
-              icon: Icons.person_outline,
-            ),
-            const SizedBox(height: 14),
-            _buildTextField(
-              controller: _emailController,
-              hint: 'Masukkan email',
-              icon: Icons.email_outlined,
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: 14),
-            _buildTextField(
-              controller: _passwordController,
-              hint: 'Masukkan password',
-              icon: Icons.lock_outline,
-              obscure: _obscurePassword,
-              suffix: IconButton(
-                icon: Icon(
-                  _obscurePassword
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  color: Colors.grey.shade600,
-                  size: 20,
-                ),
-                onPressed: () =>
-                    setState(() => _obscurePassword = !_obscurePassword),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Checkbox(
-                  value: _agreeToTerms,
-                  onChanged: (v) => setState(() => _agreeToTerms = v ?? false),
-                  activeColor: const Color(0xFF1565C0),
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
-                ),
-                Expanded(
-                  child: RichText(
-                    text: const TextSpan(
-                      style: TextStyle(fontSize: 13, color: Colors.black87),
+          ),
+          
+          // Konten form register
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 16),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios, size: 20),
+                    onPressed: () => Navigator.pop(context),
+                    color: Colors.white,
+                  ),
+                  const SizedBox(height: 100),
+                  
+                  // Card putih untuk form
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        TextSpan(text: 'Saya setuju dengan pengelolaan '),
-                        TextSpan(
-                          text: 'data pribadi',
-                          style: TextStyle(
-                            color: Color(0xFF1565C0),
-                            fontWeight: FontWeight.w600,
+                        const SizedBox(height: 24),
+
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8),
+                          child: Center(
+                            child: Text(
+                              'Daftar Sekarang',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1565C0),
+                              ),
+                            ),
                           ),
                         ),
+                        const SizedBox(height: 32),
+                        
+                        // Form fields
+                        _buildTextField(
+                          controller: _nameController,
+                          hint: 'Masukkan nama lengkap',
+                          icon: Icons.person_outline,
+                        ),
+                        const SizedBox(height: 14),
+                        _buildTextField(
+                          controller: _emailController,
+                          hint: 'Masukkan email',
+                          icon: Icons.email_outlined,
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                        const SizedBox(height: 14),
+                        _buildTextField(
+                          controller: _passwordController,
+                          hint: 'Masukkan password',
+                          icon: Icons.lock_outline,
+                          obscure: _obscurePassword,
+                          suffix: IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: Colors.grey.shade600,
+                              size: 20,
+                            ),
+                            onPressed: () =>
+                                setState(() => _obscurePassword = !_obscurePassword),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Checkbox(
+                              value: _agreeToTerms,
+                              onChanged: (v) => setState(() => _agreeToTerms = v ?? false),
+                              activeColor: const Color(0xFF1565C0),
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            Expanded(
+                              child: RichText(
+                                text: const TextSpan(
+                                  style: TextStyle(fontSize: 13, color: Colors.black87),
+                                  children: [
+                                    TextSpan(text: 'Saya setuju dengan pengelolaan '),
+                                    TextSpan(
+                                      text: 'data pribadi',
+                                      style: TextStyle(
+                                        color: Color(0xFF1565C0),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: (_agreeToTerms && !_isLoading) ? _register : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1565C0),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Daftar',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Row(
+                          children: [
+                            Expanded(child: Divider(color: Colors.grey.shade300)),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              child: Text(
+                                'Daftar dengan',
+                                style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                              ),
+                            ),
+                            Expanded(child: Divider(color: Colors.grey.shade300)),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        _buildGoogleButton(),
+                        const SizedBox(height: 24),
+                        Center(
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(builder: (_) => const LoginPage()),
+                              );
+                            },
+                            child: RichText(
+                              text: const TextSpan(
+                                style: TextStyle(fontSize: 14, color: Colors.black87),
+                                children: [
+                                  TextSpan(text: 'Sudah punya akun? '),
+                                  TextSpan(
+                                    text: 'Masuk',
+                                    style: TextStyle(
+                                      color: Color(0xFF1565C0),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 30),
                       ],
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: (_agreeToTerms && !_isLoading) ? _register : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1565C0),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 0,
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Text(
-                        'Daftar',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                ],
               ),
             ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(child: Divider(color: Colors.grey.shade300)),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    'Daftar dengan',
-                    style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-                  ),
-                ),
-                Expanded(child: Divider(color: Colors.grey.shade300)),
-              ],
-            ),
-            const SizedBox(height: 20),
-            _buildGoogleButton(),
-            const SizedBox(height: 32),
-            Center(
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginPage()),
-                  );
-                },
-                child: RichText(
-                  text: const TextSpan(
-                    style: TextStyle(fontSize: 14, color: Colors.black87),
-                    children: [
-                      TextSpan(text: 'Sudah punya akun? '),
-                      TextSpan(
-                        text: 'Masuk',
-                        style: TextStyle(
-                          color: Color(0xFF1565C0),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -385,22 +454,22 @@ class _RegisterPageState extends State<RegisterPage> {
   Widget _buildGoogleButton() {
     return Center(
       child: InkWell(
-      onTap: _isLoading ? null : _registerWithGoogle,
-      borderRadius: BorderRadius.circular(30),
-      child: Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.grey.shade500),
-          color: Colors.white,
+        onTap: _isLoading ? null : _registerWithGoogle,
+        borderRadius: BorderRadius.circular(50),
+        child: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.grey.shade300),
+            color: Colors.white,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Image.asset('assets/images/google_logo.png'),
+          ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Image.asset('assets/images/google_logo.png'),
-          ),
-          ),
-          ),
-        );
+      ),
+    );
   }
 }

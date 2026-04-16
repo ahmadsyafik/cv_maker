@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:device_preview/device_preview.dart';
+
 import 'firebase_options.dart';
 import 'state/cv_provider.dart';
 import 'pages/home_page.dart';
@@ -17,7 +19,14 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(const MyApp());
+  
+  // Jalankan dengan DevicePreview
+  runApp(
+    DevicePreview(
+      enabled: true, // Set ke false untuk production
+      builder: (context) => const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -30,6 +39,8 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'CV Builder Mahasiswa',
         debugShowCheckedModeBanner: false,
+        locale: DevicePreview.locale(context), // Tambahkan ini
+        builder: DevicePreview.appBuilder, // Tambahkan ini
         theme: ThemeData(
           primarySwatch: Colors.blue,
           useMaterial3: true,
@@ -46,27 +57,38 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        home: StreamBuilder<User?>(
-          stream: FirebaseAuth.instance.authStateChanges(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
-              );
-            }
-            if (snapshot.hasData) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                context.read<CVProvider>().loadFromFirestore();
-              });
-              return const MainNavigation();
-            }
-            return const LandingPage();
-          },
-        ),
+        // Menggunakan Wrapper untuk cek status login
+        home: const AuthWrapper(),
         routes: {
           '/main': (context) => const MainNavigation(),
         },
       ),
+    );
+  }
+}
+
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.hasData) {
+          // Load data dari Firestore saat user berhasil login
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            context.read<CVProvider>().loadFromFirestore();
+          });
+          return const MainNavigation();
+        }
+        return const LandingPage();
+      },
     );
   }
 }
@@ -92,7 +114,10 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _pages[_currentIndex],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _pages,
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {

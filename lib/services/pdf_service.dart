@@ -1,10 +1,13 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
 import '../models/education.dart';
+import 'dart:convert'; // Untuk base64Decode
 import '../models/experience.dart';
 import '../models/skill.dart';
 import '../state/cv_provider.dart';
@@ -30,12 +33,10 @@ class PDFService {
       debugPrint('Fonts loaded from assets successfully');
     } catch (e) {
       debugPrint('Error loading fonts from assets: $e');
-      // Fallback ke Helvetica
       _useFallbackFonts();
     }
   }
 
-  // Fallback ke Helvetica
   static void _useFallbackFonts() {
     _regularFont = pw.Font.helvetica();
     _boldFont = pw.Font.helveticaBold();
@@ -43,14 +44,12 @@ class PDFService {
     _fontsLoaded = true;
   }
 
-  // Initialize fonts
   static Future<void> initializeFonts() async {
     if (!_fontsLoaded) {
       await _loadFontsFromAssets();
     }
   }
 
-  // Get theme data
   static Future<pw.ThemeData> getTheme() async {
     await initializeFonts();
     return pw.ThemeData.withFont(
@@ -60,7 +59,6 @@ class PDFService {
     );
   }
 
-  // Text style helper
   static pw.TextStyle textStyle({
     double fontSize = 11,
     pw.FontWeight? fontWeight,
@@ -80,6 +78,43 @@ class PDFService {
       fontSize: fontSize,
       color: color,
     );
+  }
+
+  // Helper function untuk load image dari berbagai sumber
+  static Future<pw.MemoryImage?> loadProfileImage(String? profileImage) async {
+    if (profileImage == null || profileImage.isEmpty) return null;
+    
+    try {
+      Uint8List? imageBytes;
+      
+      // Cek apakah URL network
+      if (profileImage.startsWith('http://') || profileImage.startsWith('https://')) {
+        final response = await http.get(Uri.parse(profileImage));
+        if (response.statusCode == 200) {
+          imageBytes = response.bodyBytes;
+        }
+      } 
+      // Cek apakah file path lokal
+      else if (profileImage.startsWith('/') || profileImage.contains(':')) {
+        final file = File(profileImage);
+        if (await file.exists()) {
+          imageBytes = await file.readAsBytes();
+        }
+      }
+      // Cek apakah base64
+      else if (profileImage.contains(',')) {
+        final base64String = profileImage.split(',').last;
+        imageBytes = base64Decode(base64String);
+      }
+      
+      if (imageBytes != null) {
+        return pw.MemoryImage(imageBytes);
+      }
+    } catch (e) {
+      debugPrint('Error loading profile image: $e');
+    }
+    
+    return null;
   }
 
   // Generate PDF File
@@ -103,22 +138,25 @@ class PDFService {
       theme: await getTheme(),
     );
 
+    // Load image terlebih dahulu jika ada
+    final profileImageWidget = await loadProfileImage(profileImage);
+
     switch (template) {
       case CVTemplate.ats:
         _buildATSTemplate(pdf, fullName, email, phone, address, linkedin,
-            github, summary, educations, experiences, skills, profileImage);
+            github, summary, educations, experiences, skills, profileImageWidget);
         break;
       case CVTemplate.creative:
         _buildCreativeTemplate(pdf, fullName, email, phone, address, linkedin,
-            github, summary, educations, experiences, skills, profileImage);
+            github, summary, educations, experiences, skills, profileImageWidget);
         break;
       case CVTemplate.modern:
         _buildModernTemplate(pdf, fullName, email, phone, address, linkedin,
-            github, summary, educations, experiences, skills, profileImage);
+            github, summary, educations, experiences, skills, profileImageWidget);
         break;
       case CVTemplate.minimal:
         _buildMinimalTemplate(pdf, fullName, email, phone, address, linkedin,
-            github, summary, educations, experiences, skills, profileImage);
+            github, summary, educations, experiences, skills, profileImageWidget);
         break;
     }
 
@@ -149,22 +187,25 @@ class PDFService {
       theme: await getTheme(),
     );
 
+    // Load image terlebih dahulu jika ada
+    final profileImageWidget = await loadProfileImage(profileImage);
+
     switch (template) {
       case CVTemplate.ats:
         _buildATSTemplate(pdf, fullName, email, phone, address, linkedin,
-            github, summary, educations, experiences, skills, profileImage);
+            github, summary, educations, experiences, skills, profileImageWidget);
         break;
       case CVTemplate.creative:
         _buildCreativeTemplate(pdf, fullName, email, phone, address, linkedin,
-            github, summary, educations, experiences, skills, profileImage);
+            github, summary, educations, experiences, skills, profileImageWidget);
         break;
       case CVTemplate.modern:
         _buildModernTemplate(pdf, fullName, email, phone, address, linkedin,
-            github, summary, educations, experiences, skills, profileImage);
+            github, summary, educations, experiences, skills, profileImageWidget);
         break;
       case CVTemplate.minimal:
         _buildMinimalTemplate(pdf, fullName, email, phone, address, linkedin,
-            github, summary, educations, experiences, skills, profileImage);
+            github, summary, educations, experiences, skills, profileImageWidget);
         break;
     }
 
@@ -184,7 +225,7 @@ class PDFService {
       List<Education> educations,
       List<Experience> experiences,
       List<Skill> skills,
-      String? profileImage,
+      pw.MemoryImage? profileImage,
       ) {
     pdf.addPage(
       pw.MultiPage(
@@ -195,6 +236,19 @@ class PDFService {
             pw.Center(
               child: pw.Column(
                 children: [
+                  // Profile image untuk ATS (opsional, kecil)
+                  if (profileImage != null)
+                    pw.Container(
+                      width: 80,
+                      height: 80,
+                      margin: const pw.EdgeInsets.only(bottom: 12),
+                      child: pw.ClipOval(
+                        child: pw.Image(
+                          profileImage,
+                          fit: pw.BoxFit.cover,
+                        ),
+                      ),
+                    ),
                   pw.Text(
                     fullName.toUpperCase(),
                     style: textStyle(
@@ -221,7 +275,6 @@ class PDFService {
             ),
             pw.SizedBox(height: 24),
 
-            // Summary
             if (summary.isNotEmpty) ...[
               _buildATSSection('PROFESSIONAL SUMMARY'),
               pw.SizedBox(height: 4),
@@ -229,21 +282,18 @@ class PDFService {
               pw.SizedBox(height: 16),
             ],
 
-            // Education
             if (educations.isNotEmpty) ...[
               _buildATSSection('EDUCATION'),
               ...educations.map((edu) => _buildATSEducation(edu)),
               pw.SizedBox(height: 16),
             ],
 
-            // Experience
             if (experiences.isNotEmpty) ...[
               _buildATSSection('WORK EXPERIENCE'),
               ...experiences.map((exp) => _buildATSExperience(exp)),
               pw.SizedBox(height: 16),
             ],
 
-            // Skills
             if (skills.isNotEmpty) ...[
               _buildATSSection('SKILLS'),
               pw.Wrap(
@@ -360,7 +410,7 @@ class PDFService {
       List<Education> educations,
       List<Experience> experiences,
       List<Skill> skills,
-      String? profileImage,
+      pw.MemoryImage? profileImage,
       ) {
     pdf.addPage(
       pw.MultiPage(
@@ -387,29 +437,26 @@ class PDFService {
                           shape: pw.BoxShape.circle,
                           color: PdfColors.white,
                         ),
-                        child: profileImage != null && profileImage.isNotEmpty
+                        child: profileImage != null
                             ? pw.ClipOval(
-                          child: pw.Image(
-                            pw.MemoryImage(
-                              File(profileImage).readAsBytesSync(),
-                            ),
-                            fit: pw.BoxFit.cover,
-                          ),
-                        )
+                                child: pw.Image(
+                                  profileImage,
+                                  fit: pw.BoxFit.cover,
+                                ),
+                              )
                             : pw.Center(
-                          child: pw.Text(
-                            fullName.isNotEmpty ? fullName[0].toUpperCase() : '?',
-                            style: textStyle(
-                              fontSize: 40,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColors.blue700,
-                            ),
-                          ),
-                        ),
+                                child: pw.Text(
+                                  fullName.isNotEmpty ? fullName[0].toUpperCase() : '?',
+                                  style: textStyle(
+                                    fontSize: 40,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: PdfColors.blue700,
+                                  ),
+                                ),
+                              ),
                       ),
                       pw.SizedBox(height: 20),
 
-                      // Contact Info
                       pw.Text(
                         'KONTAK',
                         style: textStyle(
@@ -432,7 +479,6 @@ class PDFService {
 
                       pw.SizedBox(height: 20),
 
-                      // Skills
                       pw.Text(
                         'SKILLS',
                         style: textStyle(
@@ -479,7 +525,6 @@ class PDFService {
                           color: PdfColors.blue700,
                         ),
 
-                        // Summary
                         if (summary.isNotEmpty) ...[
                           pw.SizedBox(height: 20),
                           pw.Text(
@@ -494,7 +539,6 @@ class PDFService {
                           pw.Text(summary, style: textStyle(fontSize: 11)),
                         ],
 
-                        // Education
                         if (educations.isNotEmpty) ...[
                           pw.SizedBox(height: 20),
                           pw.Text(
@@ -536,7 +580,6 @@ class PDFService {
                           ),
                         ],
 
-                        // Experience
                         if (experiences.isNotEmpty) ...[
                           pw.SizedBox(height: 20),
                           pw.Text(
@@ -632,7 +675,7 @@ class PDFService {
       List<Education> educations,
       List<Experience> experiences,
       List<Skill> skills,
-      String? profileImage,
+      pw.MemoryImage? profileImage,
       ) {
     pdf.addPage(
       pw.MultiPage(
@@ -640,7 +683,6 @@ class PDFService {
         margin: const pw.EdgeInsets.all(32),
         build: (context) {
           return [
-            // Header with name
             pw.Container(
               padding: const pw.EdgeInsets.only(bottom: 20),
               decoration: const pw.BoxDecoration(
@@ -650,7 +692,7 @@ class PDFService {
               ),
               child: pw.Row(
                 children: [
-                  if (profileImage != null && profileImage.isNotEmpty)
+                  if (profileImage != null)
                     pw.Container(
                       width: 70,
                       height: 70,
@@ -658,9 +700,7 @@ class PDFService {
                       decoration: pw.BoxDecoration(
                         shape: pw.BoxShape.circle,
                         image: pw.DecorationImage(
-                          image: pw.MemoryImage(
-                            File(profileImage).readAsBytesSync(),
-                          ),
+                          image: profileImage,
                           fit: pw.BoxFit.cover,
                         ),
                       ),
@@ -691,11 +731,9 @@ class PDFService {
 
             pw.SizedBox(height: 20),
 
-            // Two column layout
             pw.Row(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                // Left Column
                 pw.Expanded(
                   flex: 1,
                   child: pw.Column(
@@ -738,13 +776,11 @@ class PDFService {
 
                 pw.SizedBox(width: 20),
 
-                // Right Column
                 pw.Expanded(
                   flex: 2,
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      // Summary
                       if (summary.isNotEmpty) ...[
                         _buildModernSection('PROFILE'),
                         pw.SizedBox(height: 4),
@@ -752,7 +788,6 @@ class PDFService {
                         pw.SizedBox(height: 16),
                       ],
 
-                      // Education
                       if (educations.isNotEmpty) ...[
                         _buildModernSection('EDUCATION'),
                         pw.SizedBox(height: 8),
@@ -760,7 +795,6 @@ class PDFService {
                         pw.SizedBox(height: 16),
                       ],
 
-                      // Experience
                       if (experiences.isNotEmpty) ...[
                         _buildModernSection('EXPERIENCE'),
                         pw.SizedBox(height: 8),
@@ -888,7 +922,7 @@ class PDFService {
       List<Education> educations,
       List<Experience> experiences,
       List<Skill> skills,
-      String? profileImage,
+      pw.MemoryImage? profileImage,
       ) {
     pdf.addPage(
       pw.MultiPage(
@@ -896,10 +930,21 @@ class PDFService {
         margin: const pw.EdgeInsets.all(40),
         build: (context) {
           return [
-            // Simple Header
             pw.Center(
               child: pw.Column(
                 children: [
+                  if (profileImage != null)
+                    pw.Container(
+                      width: 80,
+                      height: 80,
+                      margin: const pw.EdgeInsets.only(bottom: 12),
+                      child: pw.ClipOval(
+                        child: pw.Image(
+                          profileImage,
+                          fit: pw.BoxFit.cover,
+                        ),
+                      ),
+                    ),
                   pw.Text(
                     fullName,
                     style: textStyle(
@@ -927,13 +972,11 @@ class PDFService {
 
             pw.SizedBox(height: 24),
 
-            // Summary
             if (summary.isNotEmpty) ...[
               _buildMinimalSection(summary),
               pw.SizedBox(height: 16),
             ],
 
-            // Education
             if (educations.isNotEmpty) ...[
               _buildMinimalSection('Education', isTitle: true),
               pw.SizedBox(height: 8),
@@ -941,7 +984,6 @@ class PDFService {
               pw.SizedBox(height: 16),
             ],
 
-            // Experience
             if (experiences.isNotEmpty) ...[
               _buildMinimalSection('Experience', isTitle: true),
               pw.SizedBox(height: 8),
@@ -949,7 +991,6 @@ class PDFService {
               pw.SizedBox(height: 16),
             ],
 
-            // Skills
             if (skills.isNotEmpty) ...[
               _buildMinimalSection('Skills', isTitle: true),
               pw.SizedBox(height: 8),
