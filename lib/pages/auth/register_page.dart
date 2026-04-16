@@ -64,7 +64,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
     try {
       final userCredential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
@@ -107,7 +107,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(builder: (context) => const LoginPage()),
-                    (route) => false,
+                        (route) => false,
                   );
                 },
                 child: const Text(
@@ -142,13 +142,13 @@ class _RegisterPageState extends State<RegisterPage> {
         return;
       }
       final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+      await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
       final userCredential =
-          await FirebaseAuth.instance.signInWithCredential(credential);
+      await FirebaseAuth.instance.signInWithCredential(credential);
       final user = userCredential.user!;
 
       final doc = await FirebaseFirestore.instance
@@ -183,28 +183,36 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
-    final whiteContainerHeight = screenHeight * 0.80;
-    final topSvgHeight = screenHeight * 0.35;
+    final whiteContainerHeight = screenHeight * 0.75;
+    final topPadding = screenHeight * 0.18; // Padding dari atas untuk posisi form
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // Background SVG (35% bagian atas)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: topSvgHeight,
-            child: SvgPicture.asset(
-              'assets/background/background.svg',
-              width: double.infinity,
-              height: double.infinity,
-              fit: BoxFit.cover,
+          // Background SVG (penuh)
+          SvgPicture.asset(
+            'assets/background/background.svg',
+            width: double.infinity,
+            height: double.infinity,
+            fit: BoxFit.cover,
+          ),
+
+          // Overlay gradient
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.2),
+                  Colors.black.withValues(alpha: 0.4),
+                ],
+              ),
             ),
           ),
-          
-          // Container putih (65% bagian bawah)
+
+          // Container putih yang menutupi 75% bagian bawah
           Positioned(
             bottom: 0,
             left: 0,
@@ -220,50 +228,43 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
             ),
           ),
-          
-          // Konten form register
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios, size: 20),
-                    onPressed: () => Navigator.pop(context),
-                    color: Colors.white,
-                  ),
-                  const SizedBox(height: 100),
-                  
-                  // Card putih untuk form
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 24),
 
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 8),
-                          child: Center(
-                            child: Text(
-                              'Daftar Sekarang',
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1565C0),
-                              ),
-                            ),
+          // Konten form register (statis, tidak bisa scroll)
+          SafeArea(
+            child: SizedBox(
+              width: double.infinity,
+              height: screenHeight,
+              child: Column(
+                children: [
+                  Container(
+                    height: 56, // Tinggi standar AppBar
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back_ios, size: 20),
+                        onPressed: () => Navigator.pop(context),
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  // Spacer untuk mendorong konten ke posisi yang tepat
+                  SizedBox(height: topPadding),
+                  // Container form
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 28),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Daftar Sekarang',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF2578AD),
                           ),
                         ),
                         const SizedBox(height: 32),
-                        
-                        // Form fields
                         _buildTextField(
                           controller: _nameController,
                           hint: 'Masukkan nama lengkap',
@@ -340,20 +341,20 @@ class _RegisterPageState extends State<RegisterPage> {
                             ),
                             child: _isLoading
                                 ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
-                                    ),
-                                  )
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
                                 : const Text(
-                                    'Daftar',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
+                              'Daftar',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -434,7 +435,7 @@ class _RegisterPageState extends State<RegisterPage> {
         filled: true,
         fillColor: Colors.grey.shade50,
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey.shade400),

@@ -37,6 +37,16 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
+    if (!_rememberMe) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Anda harus menyetujui pengelolaan data pribadi'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -63,6 +73,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _loginWithGoogle() async {
+    // Hapus validasi checkbox untuk Google Login
     setState(() => _isLoading = true);
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
@@ -71,7 +82,7 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
       final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+      await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
@@ -95,28 +106,36 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
-    final whiteContainerHeight = screenHeight * 0.68; // 60% untuk area putih
-    final topSvgHeight = screenHeight * 0.4; // 40% untuk SVG di atas
+    final whiteContainerHeight = screenHeight * 0.75;
+    final topPadding = screenHeight * 0.18;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // Background SVG (hanya 40% bagian atas)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: topSvgHeight,
-            child: SvgPicture.asset(
-              'assets/background/background.svg',
-              width: double.infinity,
-              height: double.infinity,
-              fit: BoxFit.cover,
+          // Background SVG (penuh)
+          SvgPicture.asset(
+            'assets/background/background.svg',
+            width: double.infinity,
+            height: double.infinity,
+            fit: BoxFit.cover,
+          ),
+
+          // Overlay gradient
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.2),
+                  Colors.black.withValues(alpha: 0.4),
+                ],
+              ),
             ),
           ),
-          
-          // Container putih (60% bagian bawah)
+
+          // Container putih yang menutupi 75% bagian bawah
           Positioned(
             bottom: 0,
             left: 0,
@@ -132,55 +151,42 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
           ),
-          
-          // Konten form login
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios, size: 20),
-                    onPressed: () => Navigator.pop(context),
-                    color: Colors.white,
-                  ),
-                  const SizedBox(height: 40),
-                  // const Text(
-                  //   'Selamat Datang',
-                  //   style: TextStyle(
-                  //     fontSize: 28,
-                  //     fontWeight: FontWeight.bold,
-                  //     color: Colors.white,
-                  //   ),
-                  // ),
-                  const SizedBox(height: 80), // Jarak agar form masuk ke area putih
-                  
-                  // Form di dalam container putih
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 8),
-                        // Awal
-                        const Center(
-                        child : Text('Selamat Datang', 
-                        style: TextStyle(
-                          fontSize: 25,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue,
-                          ),
-                          ),
-                    ),
-                        const SizedBox(height: 18),
-                        // Batas 
 
+          // Konten form login (statis, tidak bisa scroll)
+          SafeArea(
+            child: SizedBox(
+              width: double.infinity,
+              height: screenHeight,
+              child: Column(
+                children: [
+                  Container(
+                    height: 56,
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back_ios, size: 20),
+                        onPressed: () => Navigator.pop(context),
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: topPadding),
+                  // Form
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 28),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Selamat Datang',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF2578AD),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
                         _buildTextField(
                           controller: _emailController,
                           hint: 'Email',
@@ -203,7 +209,8 @@ class _LoginPageState extends State<LoginPage> {
                                 setState(() => _obscurePassword = !_obscurePassword),
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
+                        // Baris untuk checkbox "Ingat saya" dan "Lupa password"
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -217,7 +224,10 @@ class _LoginPageState extends State<LoginPage> {
                                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                   visualDensity: VisualDensity.compact,
                                 ),
-                                const Text('Ingat saya', style: TextStyle(fontSize: 13)),
+                                const Text(
+                                  'Ingat saya',
+                                  style: TextStyle(fontSize: 13),
+                                ),
                               ],
                             ),
                             GestureDetector(
@@ -244,7 +254,7 @@ class _LoginPageState extends State<LoginPage> {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: _isLoading ? null : _login,
+                            onPressed: (_rememberMe && !_isLoading) ? _login : null,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF1565C0),
                               foregroundColor: Colors.white,
@@ -256,20 +266,20 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                             child: _isLoading
                                 ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
-                                    ),
-                                  )
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
                                 : const Text(
-                                    'Masuk',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
+                              'Masuk',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -288,7 +298,7 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         const SizedBox(height: 20),
                         _buildGoogleButton(),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 24),
                         Center(
                           child: GestureDetector(
                             onTap: () {
@@ -314,7 +324,7 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 30),
                       ],
                     ),
                   ),
@@ -346,7 +356,7 @@ class _LoginPageState extends State<LoginPage> {
         filled: true,
         fillColor: Colors.grey.shade50,
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey.shade400),
@@ -366,7 +376,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget _buildGoogleButton() {
     return Center(
       child: InkWell(
-        onTap: _isLoading ? null : _loginWithGoogle,
+        onTap: _isLoading ? null : _loginWithGoogle, // Hapus validasi checkbox
         borderRadius: BorderRadius.circular(50),
         child: Container(
           width: 50,
@@ -378,9 +388,7 @@ class _LoginPageState extends State<LoginPage> {
           ),
           child: Padding(
             padding: const EdgeInsets.all(10),
-            child: Image.asset(
-              'assets/images/google_logo.png',
-            ),
+            child: Image.asset('assets/images/google_logo.png'),
           ),
         ),
       ),

@@ -7,6 +7,7 @@ import 'package:device_preview/device_preview.dart';
 
 import 'firebase_options.dart';
 import 'state/cv_provider.dart';
+import 'providers/user_provider.dart';
 import 'pages/home_page.dart';
 import 'pages/builder_page.dart';
 import 'pages/preview_page.dart';
@@ -19,7 +20,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  
+
   // Jalankan dengan DevicePreview
   runApp(
     DevicePreview(
@@ -34,13 +35,16 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => CVProvider(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => CVProvider()),
+      ],
       child: MaterialApp(
         title: 'CV Builder Mahasiswa',
         debugShowCheckedModeBanner: false,
-        locale: DevicePreview.locale(context), // Tambahkan ini
-        builder: DevicePreview.appBuilder, // Tambahkan ini
+        locale: DevicePreview.locale(context),
+        builder: DevicePreview.appBuilder,
         theme: ThemeData(
           primarySwatch: Colors.blue,
           useMaterial3: true,
@@ -57,7 +61,6 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        // Menggunakan Wrapper untuk cek status login
         home: const AuthWrapper(),
         routes: {
           '/main': (context) => const MainNavigation(),
@@ -83,6 +86,7 @@ class AuthWrapper extends StatelessWidget {
         if (snapshot.hasData) {
           // Load data dari Firestore saat user berhasil login
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            context.read<UserProvider>().loadUserData();
             context.read<CVProvider>().loadFromFirestore();
           });
           return const MainNavigation();

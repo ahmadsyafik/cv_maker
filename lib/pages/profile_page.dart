@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../state/cv_provider.dart';
+import '../providers/user_provider.dart';
 import '../services/storage_service.dart';
 import 'auth/landing_page.dart';
 
@@ -24,18 +25,18 @@ class ProfilePage extends StatelessWidget {
           ),
         ],
       ),
-      body: Consumer<CVProvider>(
-        builder: (context, cvProvider, child) {
-          final displayName = cvProvider.fullName.isNotEmpty
-              ? cvProvider.fullName
+      body: Consumer<UserProvider>(
+        builder: (context, userProvider, child) {
+          // Gunakan data dari UserProvider
+          final displayName = userProvider.fullName.isNotEmpty
+              ? userProvider.fullName
               : firebaseUser?.displayName ?? 'Nama Lengkap';
-          final displayEmail = cvProvider.email.isNotEmpty
-              ? cvProvider.email
+          final displayEmail = userProvider.email.isNotEmpty
+              ? userProvider.email
               : firebaseUser?.email ?? 'email@example.com';
-
-          // Prioritas: foto dari cvProvider (upload manual) > foto dari Google
-          final uploadedPhoto = cvProvider.profileImage;
-          final googlePhoto = firebaseUser?.photoURL;
+          final profileImage = userProvider.profileImage.isNotEmpty
+              ? userProvider.profileImage
+              : firebaseUser?.photoURL ?? '';
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -55,15 +56,12 @@ class ProfilePage extends StatelessWidget {
                           children: [
                             CircleAvatar(
                               radius: 50,
-                              backgroundImage: uploadedPhoto.isNotEmpty
-                                  ? NetworkImage(uploadedPhoto)
-                                  : googlePhoto != null
-                                      ? NetworkImage(googlePhoto)
-                                      : null,
-                              child:
-                                  uploadedPhoto.isEmpty && googlePhoto == null
-                                      ? const Icon(Icons.person, size: 50)
-                                      : null,
+                              backgroundImage: profileImage.isNotEmpty
+                                  ? NetworkImage("${profileImage}&t=${DateTime.now().millisecondsSinceEpoch}")
+                                  : null,
+                              child: profileImage.isEmpty
+                                  ? const Icon(Icons.person, size: 50)
+                                  : null,
                             ),
                             Positioned(
                               bottom: 0,
@@ -77,7 +75,7 @@ class ProfilePage extends StatelessWidget {
                                   icon: const Icon(Icons.camera_alt,
                                       color: Colors.white, size: 20),
                                   onPressed: () =>
-                                      _pickAndUploadPhoto(context, cvProvider),
+                                      _pickAndUploadPhoto(context, userProvider),
                                 ),
                               ),
                             ),
@@ -114,8 +112,7 @@ class ProfilePage extends StatelessWidget {
                       _buildProfileMenuItem(
                         icon: Icons.person_outline,
                         title: 'Edit Profile',
-                        onTap: () =>
-                            _showEditProfileDialog(context, cvProvider),
+                        onTap: () => _showEditProfileDialog(context, userProvider),
                       ),
                       const Divider(height: 0),
                       _buildProfileMenuItem(
@@ -156,7 +153,7 @@ class ProfilePage extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: () => _showLogoutDialog(context, cvProvider),
+                    onPressed: () => _showLogoutDialog(context, userProvider),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       foregroundColor: Colors.red,
@@ -178,7 +175,7 @@ class ProfilePage extends StatelessWidget {
   }
 
   Future<void> _pickAndUploadPhoto(
-      BuildContext context, CVProvider cvProvider) async {
+      BuildContext context, UserProvider userProvider) async {
     final storageService = StorageService();
 
     // Pilih sumber foto
@@ -214,14 +211,7 @@ class ProfilePage extends StatelessWidget {
     final url = await storageService.uploadProfilePhoto(imageFile);
 
     if (url != null) {
-      cvProvider.updateProfileImage(url);
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid != null) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .update({'photoUrl': url});
-      }
+      await userProvider.updateProfileImage(url);
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Foto profil berhasil diperbarui!')),
@@ -248,10 +238,10 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  void _showEditProfileDialog(BuildContext context, CVProvider cvProvider) {
-    final nameController = TextEditingController(text: cvProvider.fullName);
-    final emailController = TextEditingController(text: cvProvider.email);
-    final phoneController = TextEditingController(text: cvProvider.phone);
+  void _showEditProfileDialog(BuildContext context, UserProvider userProvider) {
+    final nameController = TextEditingController(text: userProvider.fullName);
+    final emailController = TextEditingController(text: userProvider.email);
+    final phoneController = TextEditingController(text: userProvider.phone);
 
     showDialog(
       context: context,
@@ -294,21 +284,11 @@ class ProfilePage extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () async {
-              cvProvider.updatePersonalData(
+              await userProvider.updateProfile(
                 fullName: nameController.text,
                 email: emailController.text,
                 phone: phoneController.text,
               );
-              final uid = FirebaseAuth.instance.currentUser?.uid;
-              if (uid != null) {
-                await FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(uid)
-                    .update({
-                  'fullName': nameController.text,
-                  'email': emailController.text,
-                });
-              }
               if (!context.mounted) return;
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
@@ -381,7 +361,9 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  void _showLogoutDialog(BuildContext context, CVProvider cvProvider) {
+  void _showLogoutDialog(BuildContext context, UserProvider userProvider) {
+    final cvProvider = context.read<CVProvider>();
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -395,13 +377,14 @@ class ProfilePage extends StatelessWidget {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              cvProvider.resetAll();
+              userProvider.reset();  // Reset UserProvider
+              cvProvider.resetAll(); // Reset CVProvider
               await FirebaseAuth.instance.signOut();
               if (!context.mounted) return;
               Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (_) => const LandingPage()),
-                (route) => false,
+                    (route) => false,
               );
             },
             style: ElevatedButton.styleFrom(

@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../state/cv_provider.dart';
-import '../services/storage_service.dart';
+import '../providers/user_provider.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -21,7 +21,7 @@ class HomePage extends StatelessWidget {
         centerTitle: true,
         title: Text(
           'Beranda',
-          style: GoogleFonts.poppins    (
+          style: GoogleFonts.poppins(
             fontSize: 18,
             fontWeight: FontWeight.w600,
             color: Colors.white,
@@ -34,21 +34,31 @@ class HomePage extends StatelessWidget {
           ),
         ],
       ),
-      body: Consumer<CVProvider>(
-        builder: (context, cvProvider, child) {
-          final displayName = cvProvider.fullName.isNotEmpty
-              ? cvProvider.fullName
+      body: Consumer2<UserProvider, CVProvider>(
+        builder: (context, userProvider, cvProvider, child) {
+          // DATA USER (untuk profile card)
+          final displayName = userProvider.fullName.isNotEmpty
+              ? userProvider.fullName
               : firebaseUser?.displayName ?? 'Nama Lengkap';
-          final displayEmail = cvProvider.email.isNotEmpty
-              ? cvProvider.email
+          final displayEmail = userProvider.email.isNotEmpty
+              ? userProvider.email
               : firebaseUser?.email ?? 'email@example.com';
+          final profileImage = userProvider.profileImage.isNotEmpty
+              ? userProvider.profileImage
+              : firebaseUser?.photoURL ?? '';
+
+          // DATA CV (untuk progress dan statistik)
+          final cvProgress = cvProvider.cvProgress;
+          final eduCount = cvProvider.educations.length;
+          final expCount = cvProvider.experiences.length;
+          final skillCount = cvProvider.skills.length;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Profile Card
+                // Profile Card - MENGGUNAKAN DATA DARI USER PROVIDER
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
@@ -68,12 +78,12 @@ class HomePage extends StatelessWidget {
                       CircleAvatar(
                         radius: 32,
                         backgroundColor: const Color(0xFFE3F2FD),
-                        backgroundImage: cvProvider.profileImage.isNotEmpty
-                            ? NetworkImage("${cvProvider.profileImage}&t=${DateTime.now().millisecondsSinceEpoch}")
+                        backgroundImage: profileImage.isNotEmpty
+                            ? NetworkImage("${profileImage}&t=${DateTime.now().millisecondsSinceEpoch}")
                             : null,
-                        child: cvProvider.profileImage.isEmpty
+                        child: profileImage.isEmpty
                             ? const Icon(Icons.person,
-                                size: 32, color: Color(0xFF1565C0))
+                            size: 32, color: Color(0xFF1565C0))
                             : null,
                       ),
                       const SizedBox(width: 14),
@@ -83,7 +93,7 @@ class HomePage extends StatelessWidget {
                           children: [
                             Text(
                               displayName,
-                              style: GoogleFonts.poppins    (
+                              style: GoogleFonts.poppins(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.black87,
@@ -92,7 +102,7 @@ class HomePage extends StatelessWidget {
                             const SizedBox(height: 2),
                             Text(
                               displayEmail,
-                              style: GoogleFonts.poppins    (
+                              style: GoogleFonts.poppins(
                                 fontSize: 13,
                                 color: Colors.grey.shade500,
                               ),
@@ -106,7 +116,7 @@ class HomePage extends StatelessWidget {
 
                 const SizedBox(height: 16),
 
-                // Progress CV Card
+                // Progress CV Card - MENGGUNAKAN DATA DARI CV PROVIDER
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
@@ -126,7 +136,7 @@ class HomePage extends StatelessWidget {
                     children: [
                       Text(
                         'Progres CV',
-                        style: GoogleFonts.poppins    (
+                        style: GoogleFonts.poppins(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                           color: Colors.black87,
@@ -136,7 +146,7 @@ class HomePage extends StatelessWidget {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(6),
                         child: LinearProgressIndicator(
-                          value: cvProvider.cvProgress,
+                          value: cvProgress,
                           backgroundColor: Colors.grey.shade200,
                           valueColor: const AlwaysStoppedAnimation<Color>(
                             Color(0xFF1565C0),
@@ -146,8 +156,8 @@ class HomePage extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '${(cvProvider.cvProgress * 100).toStringAsFixed(0)}% Selesai',
-                        style: GoogleFonts.poppins    (
+                        '${(cvProgress * 100).toStringAsFixed(0)}% Selesai',
+                        style: GoogleFonts.poppins(
                           fontSize: 12,
                           color: Colors.grey.shade500,
                         ),
@@ -160,7 +170,7 @@ class HomePage extends StatelessWidget {
 
                 Text(
                   'Statistik CV',
-                  style: GoogleFonts.poppins    (
+                  style: GoogleFonts.poppins(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: Colors.black87,
@@ -173,7 +183,7 @@ class HomePage extends StatelessWidget {
                     Expanded(
                       child: _buildStatCard(
                         title: 'Pendidikan',
-                        value: cvProvider.educations.length.toString(),
+                        value: eduCount.toString(),
                         icon: Icons.school,
                         iconColor: const Color(0xFF1565C0),
                         iconBg: const Color(0xFFE3F2FD),
@@ -183,7 +193,7 @@ class HomePage extends StatelessWidget {
                     Expanded(
                       child: _buildStatCard(
                         title: 'Pengalaman',
-                        value: cvProvider.experiences.length.toString(),
+                        value: expCount.toString(),
                         icon: Icons.work_outline,
                         iconColor: const Color(0xFF2E7D32),
                         iconBg: const Color(0xFFE8F5E9),
@@ -197,7 +207,7 @@ class HomePage extends StatelessWidget {
                     Expanded(
                       child: _buildStatCard(
                         title: 'Skill',
-                        value: cvProvider.skills.length.toString(),
+                        value: skillCount.toString(),
                         icon: Icons.star_outline,
                         iconColor: const Color(0xFFE65100),
                         iconBg: const Color(0xFFFFF3E0),
@@ -207,10 +217,7 @@ class HomePage extends StatelessWidget {
                     Expanded(
                       child: _buildStatCard(
                         title: 'Total Items',
-                        value: (cvProvider.educations.length +
-                                cvProvider.experiences.length +
-                                cvProvider.skills.length)
-                            .toString(),
+                        value: (eduCount + expCount + skillCount).toString(),
                         icon: Icons.folder_outlined,
                         iconColor: const Color(0xFF6A1B9A),
                         iconBg: const Color(0xFFF3E5F5),
@@ -260,7 +267,7 @@ class HomePage extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             value,
-            style: GoogleFonts.poppins    (
+            style: GoogleFonts.poppins(
               fontSize: 22,
               fontWeight: FontWeight.w700,
               color: Colors.black87,
@@ -269,7 +276,7 @@ class HomePage extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             title,
-            style: GoogleFonts.poppins    (
+            style: GoogleFonts.poppins(
               fontSize: 12,
               color: Colors.grey.shade500,
             ),
