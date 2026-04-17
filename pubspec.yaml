@@ -40,16 +40,29 @@ dependencies:
   firebase_storage: ^12.4.10
   pdfrx: ^2.2.24
 
-  # HTTP - update ke versi terbaru
+  # HTTP
   http: ^1.2.0
 
-  # Package Info (untuk mendapatkan versi aplikasi) - pakai versi terbaru
+  # Package Info
   package_info_plus: ^8.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+
+  # ✅ TAMBAHAN ICON
+  flutter_launcher_icons: ^0.13.1
+
+# ✅ KONFIGURASI ICON
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+
+  # (opsional tapi bagus buat Android modern)
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/icon/app_icon.png"
 
 flutter:
   uses-material-design: true
@@ -59,6 +72,7 @@ flutter:
     - assets/images/google_logo.png
     - assets/fonts/
     - assets/background/background.svg
+    - assets/icon/app_icon.png   # ✅ TAMBAHAN
 
   # Fonts
   fonts:
