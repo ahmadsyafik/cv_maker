@@ -1,7 +1,7 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:printing/printing.dart';
+import 'dart:typed_data';
 
 import '../state/cv_provider.dart';
 import '../services/pdf_service.dart';
@@ -17,7 +17,7 @@ class _PreviewPageState extends State<PreviewPage> {
   Uint8List? _pdfBytes;
   bool _isLoading = true;
   String? _error;
-  CVTemplate? _currentTemplate; // Track current template
+  CVTemplate? _currentTemplate;
 
   @override
   void initState() {
@@ -27,12 +27,13 @@ class _PreviewPageState extends State<PreviewPage> {
 
   Future<void> _generatePreview() async {
     final cvProvider = context.read<CVProvider>();
-    
-    // Only regenerate if template changed or first time
+
     if (_currentTemplate == cvProvider.selectedTemplate && _pdfBytes != null) {
       return;
     }
-    
+
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
       _error = null;
@@ -62,6 +63,7 @@ class _PreviewPageState extends State<PreviewPage> {
         });
       }
     } catch (e) {
+      debugPrint('Error generating PDF: $e');
       if (mounted) {
         setState(() {
           _error = e.toString();
@@ -76,156 +78,190 @@ class _PreviewPageState extends State<PreviewPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text('Preview CV'),
-        backgroundColor: Colors.white,
+        title: const Text(
+          'Pratinjau CV',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: const Color(0xFF1565C0),
+        foregroundColor: Colors.white,
         surfaceTintColor: Colors.white,
+        centerTitle: true,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+            tooltip: 'Pilih Template',
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: () {
               setState(() {
-                _currentTemplate = null; // Force refresh
+                _currentTemplate = null;
+                _pdfBytes = null;
                 _generatePreview();
               });
             },
+            tooltip: 'Refresh',
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Template Selector
-          Container(
-            height: 110,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 10,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Consumer<CVProvider>(
-              builder: (context, cvProvider, child) {
-                return ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  children: [
-                    _buildTemplateItem(
-                      context,
-                      template: CVTemplate.ats,
-                      label: 'ATS Friendly',
-                      icon: Icons.description_outlined,
-                      isSelected: cvProvider.selectedTemplate == CVTemplate.ats,
-                    ),
-                    _buildTemplateItem(
-                      context,
-                      template: CVTemplate.creative,
-                      label: 'Creative',
-                      icon: Icons.palette_outlined,
-                      isSelected: cvProvider.selectedTemplate == CVTemplate.creative,
-                    ),
-                    _buildTemplateItem(
-                      context,
-                      template: CVTemplate.modern,
-                      label: 'Modern',
-                      icon: Icons.grid_view_rounded,
-                      isSelected: cvProvider.selectedTemplate == CVTemplate.modern,
-                    ),
-                    _buildTemplateItem(
-                      context,
-                      template: CVTemplate.minimal,
-                      label: 'Minimal',
-                      icon: Icons.short_text_rounded,
-                      isSelected: cvProvider.selectedTemplate == CVTemplate.minimal,
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-
-          // PDF Previewer
-          Expanded(
-            child: _buildMainContent(),
-          ),
-        ],
-      ),
+      drawer: _buildDrawer(),
+      body: _buildMainContent(),
     );
   }
 
-  Widget _buildTemplateItem(
-    BuildContext context, {
+  Widget _buildDrawer() {
+    return Consumer<CVProvider>(
+      builder: (context, cvProvider, child) {
+        return Drawer(
+          child: SafeArea(
+            child: Column(
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: const BoxDecoration(
+                    color: Colors.blue,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.picture_as_pdf,
+                        size: 40,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Pilih Template CV',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Pilih desain CV yang kamu suka',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildDrawerTemplateItem(
+                  context: context,
+                  template: CVTemplate.ats,
+                  label: 'ATS Friendly',
+                  icon: Icons.description_outlined,
+                  description: 'Template sederhana, mudah dibaca ATS',
+                  isSelected: cvProvider.selectedTemplate == CVTemplate.ats,
+                ),
+                const Divider(height: 8),
+                _buildDrawerTemplateItem(
+                  context: context,
+                  template: CVTemplate.creative,
+                  label: 'Creative',
+                  icon: Icons.palette_outlined,
+                  description: 'Template dengan desain kreatif dan warna',
+                  isSelected: cvProvider.selectedTemplate == CVTemplate.creative,
+                ),
+                const Spacer(),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'CV Maker v1.0',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey.shade400,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDrawerTemplateItem({
+    required BuildContext context,
     required CVTemplate template,
     required String label,
     required IconData icon,
+    required String description,
     required bool isSelected,
   }) {
-    return GestureDetector(
-      onTap: () async {
-        // Update provider
-        context.read<CVProvider>().setTemplate(template);
-        
-        // Force regenerate preview dengan template baru
-        setState(() {
-          _currentTemplate = null;
-          _isLoading = true;
-        });
-        
-        // Generate preview baru
-        await _generatePreview();
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        width: 100,
-        margin: const EdgeInsets.only(right: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.blue : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? Colors.blue : Colors.grey.shade300,
-            width: 1.5,
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: isSelected ? Colors.blue.withValues(alpha: 0.1) : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        border: isSelected ? Border.all(color: Colors.blue, width: 1.5) : null,
+      ),
+      child: ListTile(
+        leading: Icon(
+          icon,
+          color: isSelected ? Colors.blue : Colors.grey.shade600,
+          size: 28,
+        ),
+        title: Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            color: isSelected ? Colors.blue : Colors.black87,
           ),
-          boxShadow: isSelected
-              ? [BoxShadow(color: Colors.blue.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))]
-              : [],
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? Colors.white : Colors.grey.shade700,
-              size: 28,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.white : Colors.grey.shade700,
-              ),
-            ),
-          ],
+        subtitle: Text(
+          description,
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.grey.shade600,
+          ),
         ),
+        trailing: isSelected
+            ? const Icon(Icons.check_circle, color: Colors.blue, size: 20)
+            : null,
+        onTap: () async {
+          Navigator.pop(context);
+          context.read<CVProvider>().setTemplate(template);
+          setState(() {
+            _currentTemplate = null;
+            _pdfBytes = null;
+            _isLoading = true;
+          });
+          await _generatePreview();
+        },
       ),
     );
   }
 
   Widget _buildMainContent() {
     if (_isLoading) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(strokeWidth: 2),
-            SizedBox(height: 16),
-            Text('Menyiapkan dokumen...', style: TextStyle(color: Colors.grey)),
-          ],
+      return Container(
+        color: Colors.grey.shade200, // Background loading abu-abu
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1565C0)),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Menyiapkan dokumen...',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -237,17 +273,23 @@ class _PreviewPageState extends State<PreviewPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.error_outline_rounded, color: Colors.red[300], size: 48),
+              Icon(Icons.error_outline_rounded, color: Colors.red.shade300, size: 48),
               const SizedBox(height: 12),
               Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
-              TextButton(
+              const SizedBox(height: 16),
+              ElevatedButton(
                 onPressed: () {
                   setState(() {
                     _currentTemplate = null;
+                    _pdfBytes = null;
                     _generatePreview();
                   });
-                }, 
-                child: const Text('Coba Lagi')
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Coba Lagi'),
               ),
             ],
           ),
@@ -257,29 +299,43 @@ class _PreviewPageState extends State<PreviewPage> {
 
     if (_pdfBytes == null) {
       return const Center(
-        child: Text('Tidak ada preview'),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.picture_as_pdf, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('Belum ada preview', style: TextStyle(color: Colors.grey)),
+          ],
+        ),
       );
     }
 
-    // PERUBAHAN: Tambahkan key dengan ValueKey untuk memaksa refresh
     return PdfPreview(
-      key: ValueKey(_currentTemplate), // <<< INI YANG PENTING!
+      key: ValueKey(_currentTemplate),
       build: (format) => _pdfBytes!,
-      useActions: true,
-      canChangePageFormat: true,
-      canChangeOrientation: true,
+      useActions: false,
+      canChangePageFormat: false,
+      canChangeOrientation: false,
       canDebug: false,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      loadingWidget: const CircularProgressIndicator(),
+      loadingWidget: Container(
+        color: Colors.grey.shade200, // Loading widget juga abu-abu
+        child: const Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1565C0)),
+          ),
+        ),
+      ),
       pdfPreviewPageDecoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: const [
           BoxShadow(color: Colors.black12, blurRadius: 15, spreadRadius: 1),
         ],
       ),
       onError: (context, error) {
-        print('PDF Preview Error: $error');
+        debugPrint('PDF Preview Error: $error');
         return Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -287,8 +343,19 @@ class _PreviewPageState extends State<PreviewPage> {
               const Icon(Icons.error_outline, size: 48, color: Colors.red),
               const SizedBox(height: 12),
               Text('Gagal memuat PDF: ${error.toString()}'),
+              const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: _generatePreview,
+                onPressed: () {
+                  setState(() {
+                    _currentTemplate = null;
+                    _pdfBytes = null;
+                    _generatePreview();
+                  });
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
                 child: const Text('Coba Lagi'),
               ),
             ],

@@ -24,7 +24,7 @@ void main() async {
   // Jalankan dengan DevicePreview
   runApp(
     DevicePreview(
-      enabled: true, // Set ke false untuk production
+      enabled: false, // Set ke false untuk production
       builder: (context) => const MyApp(),
     ),
   );
@@ -123,37 +123,43 @@ class _MainNavigationState extends State<MainNavigation> {
         children: _pages,
       ),
       bottomNavigationBar: NavigationBar(
+        elevation: 2,
+        height: 65,
+        backgroundColor: Colors.white, // Background putih
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
           setState(() {
             _currentIndex = index;
           });
         },
-        destinations: const [
+        indicatorColor: Colors.blue.shade100, // Indikator warna biru muda
+        surfaceTintColor: Colors.white,
+        shadowColor: Colors.black12,
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
+            icon: Icon(Icons.home_outlined, color: Colors.grey.shade600),
+            selectedIcon: const Icon(Icons.home, color: Colors.blue),
+            label: 'Beranda',
           ),
           NavigationDestination(
-            icon: Icon(Icons.edit_outlined),
-            selectedIcon: Icon(Icons.edit),
-            label: 'Builder',
+            icon: Icon(Icons.edit_outlined, color: Colors.grey.shade600),
+            selectedIcon: const Icon(Icons.edit, color: Colors.blue),
+            label: 'Buat CV',
           ),
           NavigationDestination(
-            icon: Icon(Icons.preview_outlined),
-            selectedIcon: Icon(Icons.preview),
-            label: 'Preview',
+            icon: Icon(Icons.preview_outlined, color: Colors.grey.shade600),
+            selectedIcon: const Icon(Icons.preview, color: Colors.blue),
+            label: 'Pratinjau',
           ),
           NavigationDestination(
-            icon: Icon(Icons.ios_share_outlined),
-            selectedIcon: Icon(Icons.ios_share),
-            label: 'Export',
+            icon: Icon(Icons.ios_share_outlined, color: Colors.grey.shade600),
+            selectedIcon: const Icon(Icons.ios_share, color: Colors.blue),
+            label: 'Ekspor',
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outlined),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profile',
+            icon: Icon(Icons.person_outline, color: Colors.grey.shade600),
+            selectedIcon: const Icon(Icons.person, color: Colors.blue),
+            label: 'Profil',
           ),
         ],
       ),

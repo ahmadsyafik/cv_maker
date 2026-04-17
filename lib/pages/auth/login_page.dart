@@ -19,10 +19,13 @@ class _LoginPageState extends State<LoginPage> {
   bool _rememberMe = false;
   bool _isLoading = false;
 
+  final DraggableScrollableController _draggableController = DraggableScrollableController();
+
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _draggableController.dispose();
     super.dispose();
   }
 
@@ -73,7 +76,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _loginWithGoogle() async {
-    // Hapus validasi checkbox untuk Google Login
     setState(() => _isLoading = true);
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
@@ -106,14 +108,13 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
-    final whiteContainerHeight = screenHeight * 0.75;
-    final topPadding = screenHeight * 0.18;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // Background SVG (penuh)
+          // Background SVG (STATIS)
           SvgPicture.asset(
             'assets/background/background.svg',
             width: double.infinity,
@@ -121,7 +122,7 @@ class _LoginPageState extends State<LoginPage> {
             fit: BoxFit.cover,
           ),
 
-          // Overlay gradient
+          // Overlay gradient (STATIS)
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -135,202 +136,216 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
 
-          // Container putih yang menutupi 75% bagian bawah
+          // Tombol back (STATIS di atas)
           Positioned(
-            bottom: 0,
+            top: 0,
             left: 0,
             right: 0,
-            height: whiteContainerHeight,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(30),
-                  topRight: Radius.circular(30),
+            child: SafeArea(
+              child: Container(
+                height: 56,
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back_ios, size: 20),
+                    onPressed: () => Navigator.pop(context),
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
           ),
 
-          // Konten form login (statis, tidak bisa scroll)
-          SafeArea(
-            child: SizedBox(
-              width: double.infinity,
-              height: screenHeight,
-              child: Column(
-                children: [
-                  Container(
-                    height: 56,
-                    alignment: Alignment.centerLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 8),
-                      child: IconButton(
-                        icon: const Icon(Icons.arrow_back_ios, size: 20),
-                        onPressed: () => Navigator.pop(context),
-                        color: Colors.white,
-                      ),
-                    ),
+          // Draggable bottomsheet (bisa ditarik ke atas/bawah)
+          DraggableScrollableSheet(
+            controller: _draggableController,
+            initialChildSize: 0.75, // Ukuran awal 75% dari layar
+            minChildSize: 0.5,      // Ukuran minimal 50% dari layar
+            maxChildSize: 0.95,     // Ukuran maksimal 95% dari layar
+            builder: (context, scrollController) {
+              return Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(30),
+                    topRight: Radius.circular(30),
                   ),
-                  SizedBox(height: topPadding),
-                  // Form
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 28),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          'Selamat Datang',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF2578AD),
-                          ),
+                ),
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    children: [
+                      // Handle/indicator untuk drag
+                      Container(
+                        margin: const EdgeInsets.only(top: 12),
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
                         ),
-                        const SizedBox(height: 32),
-                        _buildTextField(
-                          controller: _emailController,
-                          hint: 'Email',
-                          keyboardType: TextInputType.emailAddress,
-                        ),
-                        const SizedBox(height: 14),
-                        _buildTextField(
-                          controller: _passwordController,
-                          hint: 'Password',
-                          obscure: _obscurePassword,
-                          suffix: IconButton(
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined,
-                              color: Colors.grey.shade600,
-                              size: 20,
-                            ),
-                            onPressed: () =>
-                                setState(() => _obscurePassword = !_obscurePassword),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        // Baris untuk checkbox "Ingat saya" dan "Lupa password"
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      ),
+                      const SizedBox(height: 20),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 28),
+                        child: Column(
                           children: [
-                            Row(
-                              children: [
-                                Checkbox(
-                                  value: _rememberMe,
-                                  onChanged: (v) =>
-                                      setState(() => _rememberMe = v ?? false),
-                                  activeColor: const Color(0xFF1565C0),
-                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                  visualDensity: VisualDensity.compact,
+                            const Text(
+                              'Selamat Datang',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF2578AD),
+                              ),
+                            ),
+                            const SizedBox(height: 32),
+                            _buildTextField(
+                              controller: _emailController,
+                              hint: 'Email',
+                              keyboardType: TextInputType.emailAddress,
+                            ),
+                            const SizedBox(height: 14),
+                            _buildTextField(
+                              controller: _passwordController,
+                              hint: 'Password',
+                              obscure: _obscurePassword,
+                              suffix: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_off_outlined
+                                      : Icons.visibility_outlined,
+                                  color: Colors.grey.shade600,
+                                  size: 20,
                                 ),
-                                const Text(
-                                  'Ingat saya',
-                                  style: TextStyle(fontSize: 13),
+                                onPressed: () =>
+                                    setState(() => _obscurePassword = !_obscurePassword),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Checkbox(
+                                      value: _rememberMe,
+                                      onChanged: (v) =>
+                                          setState(() => _rememberMe = v ?? false),
+                                      activeColor: const Color(0xFF1565C0),
+                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                    const Text(
+                                      'Ingat aku',
+                                      style: TextStyle(fontSize: 13),
+                                    ),
+                                  ],
+                                ),
+                                GestureDetector(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const ForgotPasswordPage(),
+                                      ),
+                                    );
+                                  },
+                                  child: const Text(
+                                    'Lupa password?',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Color(0xFF1565C0),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const ForgotPasswordPage(),
+                            const SizedBox(height: 24),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: (_rememberMe && !_isLoading) ? _login : null,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF1565C0),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
-                                );
-                              },
-                              child: const Text(
-                                'Lupa password?',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Color(0xFF1565C0),
-                                  fontWeight: FontWeight.w500,
+                                  elevation: 0,
+                                ),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                                    : const Text(
+                                  'Masuk',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: (_rememberMe && !_isLoading) ? _login : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1565C0),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 0,
-                            ),
-                            child: _isLoading
-                                ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                                : const Text(
-                              'Masuk',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Row(
-                          children: [
-                            Expanded(child: Divider(color: Colors.grey.shade300)),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
-                              child: Text(
-                                'Masuk dengan',
-                                style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-                              ),
-                            ),
-                            Expanded(child: Divider(color: Colors.grey.shade300)),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        _buildGoogleButton(),
-                        const SizedBox(height: 24),
-                        Center(
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(builder: (_) => const RegisterPage()),
-                              );
-                            },
-                            child: RichText(
-                              text: const TextSpan(
-                                style: TextStyle(fontSize: 14, color: Colors.black87),
-                                children: [
-                                  TextSpan(text: 'Belum punya akun? '),
-                                  TextSpan(
-                                    text: 'Daftar',
-                                    style: TextStyle(
-                                      color: Color(0xFF1565C0),
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                            const SizedBox(height: 24),
+                            Row(
+                              children: [
+                                Expanded(child: Divider(color: Colors.grey.shade300)),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  child: Text(
+                                    'Masuk dengan',
+                                    style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
                                   ),
-                                ],
+                                ),
+                                Expanded(child: Divider(color: Colors.grey.shade300)),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+                            _buildGoogleButton(),
+                            const SizedBox(height: 24),
+                            Center(
+                              child: GestureDetector(
+                                onTap: () {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const RegisterPage()),
+                                  );
+                                },
+                                child: RichText(
+                                  text: const TextSpan(
+                                    style: TextStyle(fontSize: 14, color: Colors.black87),
+                                    children: [
+                                      TextSpan(text: 'Belum punya akun? '),
+                                      TextSpan(
+                                        text: 'Daftar',
+                                        style: TextStyle(
+                                          color: Color(0xFF1565C0),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
+                            const SizedBox(height: 40),
+                          ],
                         ),
-                        const SizedBox(height: 30),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -376,7 +391,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget _buildGoogleButton() {
     return Center(
       child: InkWell(
-        onTap: _isLoading ? null : _loginWithGoogle, // Hapus validasi checkbox
+        onTap: _isLoading ? null : _loginWithGoogle,
         borderRadius: BorderRadius.circular(50),
         child: Container(
           width: 50,

@@ -20,11 +20,14 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _agreeToTerms = false;
   bool _isLoading = false;
 
+  final DraggableScrollableController _draggableController = DraggableScrollableController();
+
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _draggableController.dispose();
     super.dispose();
   }
 
@@ -182,15 +185,12 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final whiteContainerHeight = screenHeight * 0.75;
-    final topPadding = screenHeight * 0.18; // Padding dari atas untuk posisi form
-
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // Background SVG (penuh)
+          // Background SVG (STATIS)
           SvgPicture.asset(
             'assets/background/background.svg',
             width: double.infinity,
@@ -198,7 +198,7 @@ class _RegisterPageState extends State<RegisterPage> {
             fit: BoxFit.cover,
           ),
 
-          // Overlay gradient
+          // Overlay gradient (STATIS)
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -212,200 +212,213 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
           ),
 
-          // Container putih yang menutupi 75% bagian bawah
+          // Tombol back (STATIS di atas)
           Positioned(
-            bottom: 0,
+            top: 0,
             left: 0,
             right: 0,
-            height: whiteContainerHeight,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(30),
-                  topRight: Radius.circular(30),
+            child: SafeArea(
+              child: Container(
+                height: 56,
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back_ios, size: 20),
+                    onPressed: () => Navigator.pop(context),
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
           ),
 
-          // Konten form register (statis, tidak bisa scroll)
-          SafeArea(
-            child: SizedBox(
-              width: double.infinity,
-              height: screenHeight,
-              child: Column(
-                children: [
-                  Container(
-                    height: 56, // Tinggi standar AppBar
-                    alignment: Alignment.centerLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 8),
-                      child: IconButton(
-                        icon: const Icon(Icons.arrow_back_ios, size: 20),
-                        onPressed: () => Navigator.pop(context),
-                        color: Colors.white,
-                      ),
-                    ),
+          // Draggable bottomsheet
+          DraggableScrollableSheet(
+            controller: _draggableController,
+            initialChildSize: 0.75,
+            minChildSize: 0.5,
+            maxChildSize: 0.95,
+            builder: (context, scrollController) {
+              return Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(30),
+                    topRight: Radius.circular(30),
                   ),
-                  // Spacer untuk mendorong konten ke posisi yang tepat
-                  SizedBox(height: topPadding),
-                  // Container form
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 28),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          'Daftar Sekarang',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF2578AD),
-                          ),
+                ),
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.only(top: 12),
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
                         ),
-                        const SizedBox(height: 32),
-                        _buildTextField(
-                          controller: _nameController,
-                          hint: 'Masukkan nama lengkap',
-                          icon: Icons.person_outline,
-                        ),
-                        const SizedBox(height: 14),
-                        _buildTextField(
-                          controller: _emailController,
-                          hint: 'Masukkan email',
-                          icon: Icons.email_outlined,
-                          keyboardType: TextInputType.emailAddress,
-                        ),
-                        const SizedBox(height: 14),
-                        _buildTextField(
-                          controller: _passwordController,
-                          hint: 'Masukkan password',
-                          icon: Icons.lock_outline,
-                          obscure: _obscurePassword,
-                          suffix: IconButton(
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined,
-                              color: Colors.grey.shade600,
-                              size: 20,
-                            ),
-                            onPressed: () =>
-                                setState(() => _obscurePassword = !_obscurePassword),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
+                      ),
+                      const SizedBox(height: 20),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 28),
+                        child: Column(
                           children: [
-                            Checkbox(
-                              value: _agreeToTerms,
-                              onChanged: (v) => setState(() => _agreeToTerms = v ?? false),
-                              activeColor: const Color(0xFF1565C0),
-                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              visualDensity: VisualDensity.compact,
+                            const Text(
+                              'Daftar Sekarang',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF2578AD),
+                              ),
                             ),
-                            Expanded(
-                              child: RichText(
-                                text: const TextSpan(
-                                  style: TextStyle(fontSize: 13, color: Colors.black87),
-                                  children: [
-                                    TextSpan(text: 'Saya setuju dengan pengelolaan '),
-                                    TextSpan(
-                                      text: 'data pribadi',
-                                      style: TextStyle(
-                                        color: Color(0xFF1565C0),
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                            const SizedBox(height: 32),
+                            _buildTextField(
+                              controller: _nameController,
+                              hint: 'Masukkan nama lengkap',
+                              icon: Icons.person_outline,
+                            ),
+                            const SizedBox(height: 14),
+                            _buildTextField(
+                              controller: _emailController,
+                              hint: 'Masukkan email',
+                              icon: Icons.email_outlined,
+                              keyboardType: TextInputType.emailAddress,
+                            ),
+                            const SizedBox(height: 14),
+                            _buildTextField(
+                              controller: _passwordController,
+                              hint: 'Masukkan password',
+                              icon: Icons.lock_outline,
+                              obscure: _obscurePassword,
+                              suffix: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_off_outlined
+                                      : Icons.visibility_outlined,
+                                  color: Colors.grey.shade600,
+                                  size: 20,
+                                ),
+                                onPressed: () =>
+                                    setState(() => _obscurePassword = !_obscurePassword),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Checkbox(
+                                  value: _agreeToTerms,
+                                  onChanged: (v) => setState(() => _agreeToTerms = v ?? false),
+                                  activeColor: const Color(0xFF1565C0),
+                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                Expanded(
+                                  child: RichText(
+                                    text: const TextSpan(
+                                      style: TextStyle(fontSize: 13, color: Colors.black87),
+                                      children: [
+                                        TextSpan(text: 'Saya setuju dengan pengelolaan '),
+                                        TextSpan(
+                                          text: 'data pribadi',
+                                          style: TextStyle(
+                                            color: Color(0xFF1565C0),
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: (_agreeToTerms && !_isLoading) ? _register : null,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF1565C0),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  elevation: 0,
+                                ),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                                    : const Text(
+                                  'Daftar',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: (_agreeToTerms && !_isLoading) ? _register : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1565C0),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 0,
-                            ),
-                            child: _isLoading
-                                ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                                : const Text(
-                              'Daftar',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Row(
-                          children: [
-                            Expanded(child: Divider(color: Colors.grey.shade300)),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
-                              child: Text(
-                                'Daftar dengan',
-                                style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-                              ),
-                            ),
-                            Expanded(child: Divider(color: Colors.grey.shade300)),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        _buildGoogleButton(),
-                        const SizedBox(height: 24),
-                        Center(
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(builder: (_) => const LoginPage()),
-                              );
-                            },
-                            child: RichText(
-                              text: const TextSpan(
-                                style: TextStyle(fontSize: 14, color: Colors.black87),
-                                children: [
-                                  TextSpan(text: 'Sudah punya akun? '),
-                                  TextSpan(
-                                    text: 'Masuk',
-                                    style: TextStyle(
-                                      color: Color(0xFF1565C0),
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                            const SizedBox(height: 24),
+                            Row(
+                              children: [
+                                Expanded(child: Divider(color: Colors.grey.shade300)),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  child: Text(
+                                    'Daftar dengan',
+                                    style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
                                   ),
-                                ],
+                                ),
+                                Expanded(child: Divider(color: Colors.grey.shade300)),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+                            _buildGoogleButton(),
+                            const SizedBox(height: 24),
+                            Center(
+                              child: GestureDetector(
+                                onTap: () {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const LoginPage()),
+                                  );
+                                },
+                                child: RichText(
+                                  text: const TextSpan(
+                                    style: TextStyle(fontSize: 14, color: Colors.black87),
+                                    children: [
+                                      TextSpan(text: 'Sudah punya akun? '),
+                                      TextSpan(
+                                        text: 'Masuk',
+                                        style: TextStyle(
+                                          color: Color(0xFF1565C0),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
+                            const SizedBox(height: 40),
+                          ],
                         ),
-                        const SizedBox(height: 30),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
         ],
       ),

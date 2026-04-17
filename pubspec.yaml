@@ -39,7 +39,12 @@ dependencies:
   device_preview: ^1.3.1
   firebase_storage: ^12.4.10
   pdfrx: ^2.2.24
-  http: ^1.6.0
+
+  # HTTP - update ke versi terbaru
+  http: ^1.2.0
+
+  # Package Info (untuk mendapatkan versi aplikasi) - pakai versi terbaru
+  package_info_plus: ^8.0.0
 
 dev_dependencies:
   flutter_test:
@@ -52,9 +57,7 @@ flutter:
   # Assets
   assets:
     - assets/images/google_logo.png
-
     - assets/fonts/
-
     - assets/background/background.svg
 
   # Fonts

@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -27,12 +26,6 @@ class HomePage extends StatelessWidget {
             color: Colors.white,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: Consumer2<UserProvider, CVProvider>(
         builder: (context, userProvider, cvProvider, child) {
@@ -53,12 +46,16 @@ class HomePage extends StatelessWidget {
           final expCount = cvProvider.experiences.length;
           final skillCount = cvProvider.skills.length;
 
+          // Progress value dan teks
+          final double displayProgress = cvProgress;
+          final String progressText = '${(cvProgress * 100).toStringAsFixed(0)}% Selesai';
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Profile Card - MENGGUNAKAN DATA DARI USER PROVIDER
+                // Profile Card
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
@@ -67,7 +64,7 @@ class HomePage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -79,7 +76,7 @@ class HomePage extends StatelessWidget {
                         radius: 32,
                         backgroundColor: const Color(0xFFE3F2FD),
                         backgroundImage: profileImage.isNotEmpty
-                            ? NetworkImage("${profileImage}&t=${DateTime.now().millisecondsSinceEpoch}")
+                            ? NetworkImage(profileImage)
                             : null,
                         child: profileImage.isEmpty
                             ? const Icon(Icons.person,
@@ -116,7 +113,7 @@ class HomePage extends StatelessWidget {
 
                 const SizedBox(height: 16),
 
-                // Progress CV Card - MENGGUNAKAN DATA DARI CV PROVIDER
+                // Progress CV Card
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
@@ -125,7 +122,7 @@ class HomePage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -146,8 +143,8 @@ class HomePage extends StatelessWidget {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(6),
                         child: LinearProgressIndicator(
-                          value: cvProgress,
-                          backgroundColor: Colors.grey.shade200,
+                          value: displayProgress,
+                          backgroundColor: Colors.grey.shade400,
                           valueColor: const AlwaysStoppedAnimation<Color>(
                             Color(0xFF1565C0),
                           ),
@@ -156,7 +153,7 @@ class HomePage extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '${(cvProgress * 100).toStringAsFixed(0)}% Selesai',
+                        progressText,
                         style: GoogleFonts.poppins(
                           fontSize: 12,
                           color: Colors.grey.shade500,
@@ -247,7 +244,7 @@ class HomePage extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),

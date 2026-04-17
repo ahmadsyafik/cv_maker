@@ -1,16 +1,37 @@
-import 'dart:io';
-import 'dart:typed_data';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import '../models/education.dart';
-import 'dart:convert'; // Untuk base64Decode
+import 'dart:convert';
+import 'dart:io';
 import '../models/experience.dart';
 import '../models/skill.dart';
 import '../state/cv_provider.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Warna tema yang digunakan di kedua template
+// ─────────────────────────────────────────────────────────────────────────────
+const _kBlue = PdfColor.fromInt(0xFF185FA5);       // Blue 600
+const _kBlueLight = PdfColor.fromInt(0xFFE6F1FB);  // Blue 50
+const _kBlueDark = PdfColor.fromInt(0xFF0C447C);   // Blue 800
+const _kBlueSidebar = PdfColor.fromInt(0xFF1A5FA8); // sidebar background
+const _kGrey800 = PdfColor.fromInt(0xFF333333);
+const _kGrey700 = PdfColor.fromInt(0xFF555555);
+const _kGrey600 = PdfColor.fromInt(0xFF777777);
+const _kGrey300 = PdfColor.fromInt(0xFFCCCCCC);
+const _kGrey100 = PdfColor.fromInt(0xFFF4F4F4);
+const _kWhite = PdfColors.white;
+const _kBlack = PdfColor.fromInt(0xFF111111);
+
+// Batasan maksimum untuk menjaga agar CV tetap 1 halaman
+const _maxExperiences = 3;
+const _maxEducations = 2;
+const _maxSkills = 8;
+const _maxSummaryLength = 300;
+const _maxDescriptionLength = 150;
 
 class PDFService {
   static late pw.Font _regularFont;
@@ -18,17 +39,16 @@ class PDFService {
   static late pw.Font _italicFont;
   static bool _fontsLoaded = false;
 
-  // Load fonts dari assets (fallback)
+  // ───────────────────────── Font Loading ─────────────────────────
   static Future<void> _loadFontsFromAssets() async {
     try {
-      final regularFontData = await rootBundle.load('assets/fonts/Roboto-Regular.ttf');
-      final boldFontData = await rootBundle.load('assets/fonts/Roboto-Bold.ttf');
-      final italicFontData = await rootBundle.load('assets/fonts/Roboto-Italic.ttf');
+      final regularData = await rootBundle.load('assets/fonts/Roboto-Regular.ttf');
+      final boldData = await rootBundle.load('assets/fonts/Roboto-Bold.ttf');
+      final italicData = await rootBundle.load('assets/fonts/Roboto-Italic.ttf');
 
-      _regularFont = pw.Font.ttf(regularFontData.buffer.asByteData());
-      _boldFont = pw.Font.ttf(boldFontData.buffer.asByteData());
-      _italicFont = pw.Font.ttf(italicFontData.buffer.asByteData());
-
+      _regularFont = pw.Font.ttf(regularData.buffer.asByteData());
+      _boldFont = pw.Font.ttf(boldData.buffer.asByteData());
+      _italicFont = pw.Font.ttf(italicData.buffer.asByteData());
       _fontsLoaded = true;
       debugPrint('Fonts loaded from assets successfully');
     } catch (e) {
@@ -45,9 +65,7 @@ class PDFService {
   }
 
   static Future<void> initializeFonts() async {
-    if (!_fontsLoaded) {
-      await _loadFontsFromAssets();
-    }
+    if (!_fontsLoaded) await _loadFontsFromAssets();
   }
 
   static Future<pw.ThemeData> getTheme() async {
@@ -59,114 +77,82 @@ class PDFService {
     );
   }
 
-  static pw.TextStyle textStyle({
-    double fontSize = 11,
+  // ───────────────────────── Validasi Data ─────────────────────────
+  static String? validateCVData({
+    required List<Education> educations,
+    required List<Experience> experiences,
+    required List<Skill> skills,
+    required String summary,
+  }) {
+    if (experiences.length > _maxExperiences) {
+      return 'Pengalaman kerja terlalu banyak (maksimal $_maxExperiences). Silakan kurangi atau edit data Anda.';
+    }
+    if (educations.length > _maxEducations) {
+      return 'Pendidikan terlalu banyak (maksimal $_maxEducations). Silakan kurangi atau edit data Anda.';
+    }
+    if (skills.length > _maxSkills) {
+      return 'Keahlian terlalu banyak (maksimal $_maxSkills). Silakan kurangi atau edit data Anda.';
+    }
+    if (summary.length > _maxSummaryLength) {
+      return 'Profil profesional terlalu panjang (maksimal $_maxSummaryLength karakter). Silakan edit data Anda.';
+    }
+
+    // Cek panjang deskripsi pengalaman
+    for (var exp in experiences) {
+      if (exp.description.length > _maxDescriptionLength) {
+        return 'Deskripsi "${exp.position}" terlalu panjang (maksimal $_maxDescriptionLength karakter). Silakan edit data Anda.';
+      }
+    }
+
+    return null;
+  }
+
+  // ───────────────────────── Text Style Helper ─────────────────────────
+  static pw.TextStyle ts({
+    double fontSize = 10,
     pw.FontWeight? fontWeight,
     pw.FontStyle? fontStyle,
     PdfColor? color,
+    double? letterSpacing,
+    double? lineSpacing,
   }) {
     pw.Font font = _regularFont;
-
     if (fontWeight == pw.FontWeight.bold) {
       font = _boldFont;
     } else if (fontStyle == pw.FontStyle.italic) {
       font = _italicFont;
     }
-
     return pw.TextStyle(
       font: font,
       fontSize: fontSize,
       color: color,
+      letterSpacing: letterSpacing,
+      lineSpacing: lineSpacing,
     );
   }
 
-  // Helper function untuk load image dari berbagai sumber
+  // ───────────────────────── Profile Image ─────────────────────────
   static Future<pw.MemoryImage?> loadProfileImage(String? profileImage) async {
     if (profileImage == null || profileImage.isEmpty) return null;
-    
     try {
-      Uint8List? imageBytes;
-      
-      // Cek apakah URL network
+      Uint8List? bytes;
       if (profileImage.startsWith('http://') || profileImage.startsWith('https://')) {
-        final response = await http.get(Uri.parse(profileImage));
-        if (response.statusCode == 200) {
-          imageBytes = response.bodyBytes;
-        }
-      } 
-      // Cek apakah file path lokal
-      else if (profileImage.startsWith('/') || profileImage.contains(':')) {
+        final res = await http.get(Uri.parse(profileImage));
+        if (res.statusCode == 200) bytes = Uint8List.fromList(res.bodyBytes);
+      } else if (profileImage.startsWith('/') || profileImage.contains(':')) {
         final file = File(profileImage);
-        if (await file.exists()) {
-          imageBytes = await file.readAsBytes();
-        }
+        if (await file.exists()) bytes = await file.readAsBytes();
+      } else if (profileImage.contains(',')) {
+        bytes = Uint8List.fromList(base64Decode(profileImage.split(',').last));
       }
-      // Cek apakah base64
-      else if (profileImage.contains(',')) {
-        final base64String = profileImage.split(',').last;
-        imageBytes = base64Decode(base64String);
-      }
-      
-      if (imageBytes != null) {
-        return pw.MemoryImage(imageBytes);
-      }
+      if (bytes != null) return pw.MemoryImage(bytes);
     } catch (e) {
       debugPrint('Error loading profile image: $e');
     }
-    
     return null;
   }
 
-  // Generate PDF File
-  static Future<File> generateCV({
-    required String fullName,
-    required String email,
-    required String phone,
-    required String address,
-    required String linkedin,
-    required String github,
-    required String summary,
-    required List<Education> educations,
-    required List<Experience> experiences,
-    required List<Skill> skills,
-    CVTemplate template = CVTemplate.ats,
-    String? profileImage,
-  }) async {
-    await initializeFonts();
-
-    final pdf = pw.Document(
-      theme: await getTheme(),
-    );
-
-    // Load image terlebih dahulu jika ada
-    final profileImageWidget = await loadProfileImage(profileImage);
-
-    switch (template) {
-      case CVTemplate.ats:
-        _buildATSTemplate(pdf, fullName, email, phone, address, linkedin,
-            github, summary, educations, experiences, skills, profileImageWidget);
-        break;
-      case CVTemplate.creative:
-        _buildCreativeTemplate(pdf, fullName, email, phone, address, linkedin,
-            github, summary, educations, experiences, skills, profileImageWidget);
-        break;
-      case CVTemplate.modern:
-        _buildModernTemplate(pdf, fullName, email, phone, address, linkedin,
-            github, summary, educations, experiences, skills, profileImageWidget);
-        break;
-      case CVTemplate.minimal:
-        _buildMinimalTemplate(pdf, fullName, email, phone, address, linkedin,
-            github, summary, educations, experiences, skills, profileImageWidget);
-        break;
-    }
-
-    final output = await getTemporaryDirectory();
-    final file = File('${output.path}/cv_${DateTime.now().millisecondsSinceEpoch}.pdf');
-    await file.writeAsBytes(await pdf.save());
-    return file;
-  }
-
-  // Generate PDF Bytes untuk preview
+  // ───────────────────────── Public API ─────────────────────────
   static Future<Uint8List> generatePDFBytes({
     required String fullName,
     required String email,
@@ -181,38 +167,77 @@ class PDFService {
     CVTemplate template = CVTemplate.ats,
     String? profileImage,
   }) async {
-    await initializeFonts();
-
-    final pdf = pw.Document(
-      theme: await getTheme(),
+    // Validasi data terlebih dahulu
+    final validationError = validateCVData(
+      educations: educations,
+      experiences: experiences,
+      skills: skills,
+      summary: summary,
     );
 
-    // Load image terlebih dahulu jika ada
-    final profileImageWidget = await loadProfileImage(profileImage);
-
-    switch (template) {
-      case CVTemplate.ats:
-        _buildATSTemplate(pdf, fullName, email, phone, address, linkedin,
-            github, summary, educations, experiences, skills, profileImageWidget);
-        break;
-      case CVTemplate.creative:
-        _buildCreativeTemplate(pdf, fullName, email, phone, address, linkedin,
-            github, summary, educations, experiences, skills, profileImageWidget);
-        break;
-      case CVTemplate.modern:
-        _buildModernTemplate(pdf, fullName, email, phone, address, linkedin,
-            github, summary, educations, experiences, skills, profileImageWidget);
-        break;
-      case CVTemplate.minimal:
-        _buildMinimalTemplate(pdf, fullName, email, phone, address, linkedin,
-            github, summary, educations, experiences, skills, profileImageWidget);
-        break;
+    if (validationError != null) {
+      throw Exception(validationError);
     }
 
-    return await pdf.save();
+    await initializeFonts();
+    final pdf = pw.Document(theme: await getTheme());
+    final photo = await loadProfileImage(profileImage);
+
+    try {
+      if (template == CVTemplate.ats) {
+        _buildATSTemplate(pdf, fullName, email, phone, address, linkedin,
+            github, summary, educations, experiences, skills, photo);
+      } else {
+        _buildCreativeTemplate(pdf, fullName, email, phone, address, linkedin,
+            github, summary, educations, experiences, skills, photo);
+      }
+      return await pdf.save();
+    } catch (e) {
+      debugPrint('Error generating PDF: $e');
+      if (e.toString().contains('exceed a page height')) {
+        throw Exception('Data CV terlalu panjang untuk muat dalam 1 halaman. Silakan kurangi jumlah atau panjang teks pada data Anda.');
+      }
+      rethrow;
+    }
   }
 
-  // ============= TEMPLATE ATS =============
+  static Future<File> generateCV({
+    required String fullName,
+    required String email,
+    required String phone,
+    required String address,
+    required String linkedin,
+    required String github,
+    required String summary,
+    required List<Education> educations,
+    required List<Experience> experiences,
+    required List<Skill> skills,
+    CVTemplate template = CVTemplate.ats,
+    String? profileImage,
+  }) async {
+    final bytes = await generatePDFBytes(
+      fullName: fullName,
+      email: email,
+      phone: phone,
+      address: address,
+      linkedin: linkedin,
+      github: github,
+      summary: summary,
+      educations: educations,
+      experiences: experiences,
+      skills: skills,
+      template: template,
+      profileImage: profileImage,
+    );
+    final output = await getTemporaryDirectory();
+    final file = File('${output.path}/cv_${DateTime.now().millisecondsSinceEpoch}.pdf');
+    await file.writeAsBytes(bytes);
+    return file;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  TEMPLATE ATS — clean, single-column, ATS-friendly
+  // ═══════════════════════════════════════════════════════════════════════════
   static void _buildATSTemplate(
       pw.Document pdf,
       String fullName,
@@ -225,179 +250,182 @@ class PDFService {
       List<Education> educations,
       List<Experience> experiences,
       List<Skill> skills,
-      pw.MemoryImage? profileImage,
+      pw.MemoryImage? photo,
       ) {
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
-        build: (context) {
-          return [
-            pw.Center(
-              child: pw.Column(
-                children: [
-                  // Profile image untuk ATS (opsional, kecil)
-                  if (profileImage != null)
-                    pw.Container(
-                      width: 80,
-                      height: 80,
-                      margin: const pw.EdgeInsets.only(bottom: 12),
-                      child: pw.ClipOval(
-                        child: pw.Image(
-                          profileImage,
-                          fit: pw.BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                  pw.Text(
-                    fullName.toUpperCase(),
-                    style: textStyle(
-                      fontSize: 24,
-                      fontWeight: pw.FontWeight.bold,
-                    ).copyWith(letterSpacing: 2),
+        margin: const pw.EdgeInsets.fromLTRB(44, 36, 44, 36),
+        build: (ctx) => [
+          // Header dengan alignment center
+          pw.Center(
+            child: pw.Column(
+              children: [
+                if (photo != null)
+                  pw.Container(
+                    width: 70,
+                    height: 70,
+                    margin: const pw.EdgeInsets.only(bottom: 10),
+                    child: pw.ClipOval(child: pw.Image(photo, fit: pw.BoxFit.cover)),
                   ),
-                  pw.SizedBox(height: 8),
+                pw.Text(
+                  fullName.toUpperCase(),
+                  style: ts(fontSize: 22, fontWeight: pw.FontWeight.bold, color: _kBlack, letterSpacing: 2.5),
+                  textAlign: pw.TextAlign.center,
+                ),
+                pw.SizedBox(height: 6),
+                pw.Container(width: 44, height: 2.5, color: _kBlue),
+                pw.SizedBox(height: 10),
+                pw.Text(email, style: ts(fontSize: 10, color: _kGrey700), textAlign: pw.TextAlign.center),
+                pw.SizedBox(height: 2),
+                pw.Text(
+                  [phone, address].where((s) => s.isNotEmpty).join('  ·  '),
+                  style: ts(fontSize: 10, color: _kGrey700),
+                  textAlign: pw.TextAlign.center,
+                ),
+                if (linkedin.isNotEmpty || github.isNotEmpty) ...[
+                  pw.SizedBox(height: 2),
                   pw.Text(
-                    email,
-                    style: textStyle(fontSize: 11),
+                    [linkedin, github].where((s) => s.isNotEmpty).join('  ·  '),
+                    style: ts(fontSize: 10, color: _kBlue),
+                    textAlign: pw.TextAlign.center,
                   ),
-                  pw.Text(
-                    '$phone | $address',
-                    style: textStyle(fontSize: 11),
-                  ),
-                  if (linkedin.isNotEmpty || github.isNotEmpty)
-                    pw.Text(
-                      [linkedin, github].where((s) => s.isNotEmpty).join(' | '),
-                      style: textStyle(fontSize: 11),
-                    ),
                 ],
-              ),
+              ],
             ),
-            pw.SizedBox(height: 24),
-
-            if (summary.isNotEmpty) ...[
-              _buildATSSection('PROFESSIONAL SUMMARY'),
-              pw.SizedBox(height: 4),
-              pw.Text(summary, style: textStyle(fontSize: 11)),
-              pw.SizedBox(height: 16),
-            ],
-
-            if (educations.isNotEmpty) ...[
-              _buildATSSection('EDUCATION'),
-              ...educations.map((edu) => _buildATSEducation(edu)),
-              pw.SizedBox(height: 16),
-            ],
-
-            if (experiences.isNotEmpty) ...[
-              _buildATSSection('WORK EXPERIENCE'),
-              ...experiences.map((exp) => _buildATSExperience(exp)),
-              pw.SizedBox(height: 16),
-            ],
-
-            if (skills.isNotEmpty) ...[
-              _buildATSSection('SKILLS'),
-              pw.Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children: skills.map((skill) =>
-                    pw.Container(
-                      padding: const pw.EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: pw.BoxDecoration(
-                        border: pw.Border.all(color: PdfColors.grey),
-                        borderRadius: pw.BorderRadius.circular(4),
-                      ),
-                      child: pw.Text(skill.name, style: textStyle(fontSize: 10)),
-                    ),
-                ).toList(),
-              ),
-            ],
-          ];
-        },
+          ),
+          pw.SizedBox(height: 20),
+          if (summary.isNotEmpty) ...[
+            _atsSectionHeader('PROFIL PROFESIONAL'),
+            pw.Text(summary, style: ts(fontSize: 10.5, color: _kGrey800, lineSpacing: 1.5)),
+            pw.SizedBox(height: 14),
+          ],
+          if (experiences.isNotEmpty) ...[
+            _atsSectionHeader('PENGALAMAN KERJA'),
+            ...experiences.take(_maxExperiences).map(_atsExperience),
+            pw.SizedBox(height: 6),
+          ],
+          if (educations.isNotEmpty) ...[
+            _atsSectionHeader('PENDIDIKAN'),
+            ...educations.take(_maxEducations).map(_atsEducation),
+            pw.SizedBox(height: 6),
+          ],
+          if (skills.isNotEmpty) ...[
+            _atsSectionHeader('KEAHLIAN'),
+            pw.SizedBox(height: 2),
+            pw.Wrap(
+              spacing: 6,
+              runSpacing: 5,
+              children: skills.take(_maxSkills).map((s) => _atsSkillChip(s.name)).toList(),
+            ),
+          ],
+        ],
       ),
     );
   }
 
-  static pw.Widget _buildATSSection(String title) {
+  // ── ATS: Section Header ──
+  static pw.Widget _atsSectionHeader(String title) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Container(
-          width: double.infinity,
-          height: 1,
-          color: PdfColors.black,
+        pw.Container(width: double.infinity, height: 0.75, color: _kGrey300),
+        pw.SizedBox(height: 5),
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
+          children: [
+            pw.Container(width: 3, height: 13, color: _kBlue),
+            pw.SizedBox(width: 7),
+            pw.Text(
+              title,
+              style: ts(fontSize: 11.5, fontWeight: pw.FontWeight.bold, color: _kBlack, letterSpacing: 1.2),
+            ),
+          ],
         ),
-        pw.SizedBox(height: 4),
-        pw.Text(
-          title,
-          style: textStyle(
-            fontSize: 14,
-            fontWeight: pw.FontWeight.bold,
-          ).copyWith(letterSpacing: 1),
-        ),
-        pw.SizedBox(height: 8),
+        pw.SizedBox(height: 10),
       ],
     );
   }
 
-  static pw.Widget _buildATSEducation(Education edu) {
+  // ── ATS: Experience Item ──
+  static pw.Widget _atsExperience(Experience exp) {
     return pw.Container(
-      margin: const pw.EdgeInsets.only(bottom: 12),
+      margin: const pw.EdgeInsets.only(bottom: 13),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text(
-                edu.university,
-                style: textStyle(fontWeight: pw.FontWeight.bold, fontSize: 12),
+              pw.Expanded(
+                child: pw.Text(exp.position,
+                    style: ts(fontSize: 11, fontWeight: pw.FontWeight.bold, color: _kBlack)),
               ),
               pw.Text(
-                '${edu.startYear} - ${edu.endYear}',
-                style: textStyle(fontSize: 10),
-              ),
-            ],
-          ),
-          pw.Text(edu.major, style: textStyle(fontSize: 11)),
-          if (edu.gpa != null)
-            pw.Text('IPK: ${edu.gpa}', style: textStyle(fontSize: 10)),
-        ],
-      ),
-    );
-  }
-
-  static pw.Widget _buildATSExperience(Experience exp) {
-    return pw.Container(
-      margin: const pw.EdgeInsets.only(bottom: 12),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Text(
-                exp.position,
-                style: textStyle(fontWeight: pw.FontWeight.bold, fontSize: 12),
-              ),
-              pw.Text(
-                '${exp.startYear} - ${exp.endYear}',
-                style: textStyle(fontSize: 10),
+                '${exp.startYear} – ${exp.endYear}',
+                style: ts(fontSize: 9.5, color: _kGrey600),
               ),
             ],
           ),
+          pw.SizedBox(height: 2),
           pw.Text(exp.organization,
-              style: textStyle(fontSize: 11, fontStyle: pw.FontStyle.italic)),
-          pw.SizedBox(height: 4),
-          pw.Text(exp.description, style: textStyle(fontSize: 10)),
+              style: ts(fontSize: 10.5, fontStyle: pw.FontStyle.italic, color: _kGrey700)),
+          pw.SizedBox(height: 5),
+          pw.Text(exp.description,
+              style: ts(fontSize: 10, color: _kGrey800, lineSpacing: 1.3)),
         ],
       ),
     );
   }
 
-  // ============= TEMPLATE CREATIVE =============
+  // ── ATS: Education Item ──
+  static pw.Widget _atsEducation(Education edu) {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 12),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Expanded(
+                child: pw.Text(edu.university,
+                    style: ts(fontSize: 11, fontWeight: pw.FontWeight.bold, color: _kBlack)),
+              ),
+              pw.Text(
+                '${edu.startYear} – ${edu.endYear}',
+                style: ts(fontSize: 9.5, color: _kGrey600),
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 2),
+          pw.Text(edu.major,
+              style: ts(fontSize: 10.5, fontStyle: pw.FontStyle.italic, color: _kGrey700)),
+          if (edu.gpa != null) ...[
+            pw.SizedBox(height: 1),
+            pw.Text('IPK: ${edu.gpa}', style: ts(fontSize: 9.5, color: _kGrey600)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ── ATS: Skill Chip ──
+  static pw.Widget _atsSkillChip(String name) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: pw.BoxDecoration(
+        color: _kGrey100,
+        border: pw.Border.all(color: _kGrey300, width: 0.5),
+        borderRadius: pw.BorderRadius.circular(3),
+      ),
+      child: pw.Text(name, style: ts(fontSize: 9.5, color: _kGrey800)),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  TEMPLATE CREATIVE — two-column with coloured sidebar
+  // ═══════════════════════════════════════════════════════════════════════════
   static void _buildCreativeTemplate(
       pw.Document pdf,
       String fullName,
@@ -410,671 +438,244 @@ class PDFService {
       List<Education> educations,
       List<Experience> experiences,
       List<Skill> skills,
-      pw.MemoryImage? profileImage,
+      pw.MemoryImage? photo,
       ) {
+
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: pw.EdgeInsets.zero,
-        build: (context) {
-          return [
-            pw.Row(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                // Left Column
-                pw.Container(
-                  width: 180,
-                  color: PdfColors.blue700,
-                  padding: const pw.EdgeInsets.all(20),
+        build: (ctx) => [
+          pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // ── Sidebar kiri (dengan border radius) ──
+              pw.Container(
+                width: 172,
+                color: _kBlueSidebar,
+                padding: const pw.EdgeInsets.fromLTRB(16, 28, 16, 28),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    // Avatar (tetap center)
+                    pw.Center(
+                      child: pw.Container(
+                        width: 82,
+                        height: 82,
+                        decoration: pw.BoxDecoration(
+                          shape: pw.BoxShape.circle,
+                          color: _kWhite,
+                          border: pw.Border.all(color: _kWhite, width: 2.5),
+                        ),
+                        child: photo != null
+                            ? pw.ClipOval(child: pw.Image(photo, fit: pw.BoxFit.cover))
+                            : pw.Center(
+                          child: pw.Text(
+                            fullName.isNotEmpty ? fullName[0].toUpperCase() : '?',
+                            style: ts(fontSize: 30, fontWeight: pw.FontWeight.bold, color: _kBlueSidebar),
+                          ),
+                        ),
+                      ),
+                    ),
+                    pw.SizedBox(height: 10),
+                    pw.Center(
+                      child: pw.Text(
+                        fullName,
+                        textAlign: pw.TextAlign.center,
+                        style: ts(fontSize: 12, fontWeight: pw.FontWeight.bold, color: _kWhite),
+                      ),
+                    ),
+                    pw.SizedBox(height: 20),
+                    // Kontak (rata kiri)
+                    _crSidebarSection('KONTAK'),
+                    _crContactRow('Email', email),
+                    _crContactRow('Telepon', phone),
+                    _crContactRow('Alamat', address),
+                    if (linkedin.isNotEmpty) _crContactRow('LinkedIn', linkedin),
+                    if (github.isNotEmpty) _crContactRow('GitHub', github),
+                    pw.SizedBox(height: 18),
+                    // Skills (rata kiri)
+                    _crSidebarSection('KEAHLIAN'),
+                    ...skills.take(_maxSkills).map((skill) => _crSkillItem(skill.name)),
+                  ],
+                ),
+              ),
+              // ── Kolom kanan ──
+              pw.Expanded(
+                child: pw.Container(
+                  padding: const pw.EdgeInsets.fromLTRB(22, 28, 22, 28),
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      // Profile Image or Initial
-                      pw.Container(
-                        width: 100,
-                        height: 100,
-                        decoration: const pw.BoxDecoration(
-                          shape: pw.BoxShape.circle,
-                          color: PdfColors.white,
-                        ),
-                        child: profileImage != null
-                            ? pw.ClipOval(
-                                child: pw.Image(
-                                  profileImage,
-                                  fit: pw.BoxFit.cover,
-                                ),
-                              )
-                            : pw.Center(
-                                child: pw.Text(
-                                  fullName.isNotEmpty ? fullName[0].toUpperCase() : '?',
-                                  style: textStyle(
-                                    fontSize: 40,
-                                    fontWeight: pw.FontWeight.bold,
-                                    color: PdfColors.blue700,
-                                  ),
-                                ),
-                              ),
-                      ),
-                      pw.SizedBox(height: 20),
-
-                      pw.Text(
-                        'KONTAK',
-                        style: textStyle(
-                          fontSize: 14,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.white,
-                        ).copyWith(letterSpacing: 2),
-                      ),
-                      pw.SizedBox(height: 10),
-                      pw.Container(height: 2, color: PdfColors.white),
-                      pw.SizedBox(height: 10),
-
-                      _buildCreativeContact('📞', phone, isWhite: true),
-                      _buildCreativeContact('✉️', email, isWhite: true),
-                      _buildCreativeContact('📍', address, isWhite: true),
-                      if (linkedin.isNotEmpty)
-                        _buildCreativeContact('🔗', linkedin, isWhite: true),
-                      if (github.isNotEmpty)
-                        _buildCreativeContact('💻', github, isWhite: true),
-
-                      pw.SizedBox(height: 20),
-
-                      pw.Text(
-                        'SKILLS',
-                        style: textStyle(
-                          fontSize: 14,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.white,
-                        ).copyWith(letterSpacing: 2),
-                      ),
-                      pw.SizedBox(height: 10),
-                      pw.Container(height: 2, color: PdfColors.white),
-                      pw.SizedBox(height: 10),
-                      ...skills.map((skill) =>
-                          pw.Container(
-                            margin: const pw.EdgeInsets.only(bottom: 8),
-                            child: pw.Text(
-                              '• ${skill.name}',
-                              style: textStyle(color: PdfColors.white, fontSize: 11),
-                            ),
-                          ),
-                      ),
+                      pw.Text(fullName,
+                          style: ts(fontSize: 26, fontWeight: pw.FontWeight.bold, color: _kBlue)),
+                      pw.SizedBox(height: 3),
+                      pw.Container(width: 48, height: 3, color: _kBlue),
+                      pw.SizedBox(height: 18),
+                      if (summary.isNotEmpty) ...[
+                        _crRightSection('PROFIL'),
+                        pw.Text(summary,
+                            style: ts(fontSize: 10.5, color: _kGrey800, lineSpacing: 1.5)),
+                        pw.SizedBox(height: 16),
+                      ],
+                      if (experiences.isNotEmpty) ...[
+                        _crRightSection('PENGALAMAN'),
+                        ...experiences.take(_maxExperiences).map(_crExperience),
+                        pw.SizedBox(height: 8),
+                      ],
+                      if (educations.isNotEmpty) ...[
+                        _crRightSection('PENDIDIKAN'),
+                        ...educations.take(_maxEducations).map(_crEducation),
+                      ],
                     ],
                   ),
                 ),
-
-                // Right Column
-                pw.Expanded(
-                  child: pw.Container(
-                    padding: const pw.EdgeInsets.all(20),
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.Text(
-                          fullName,
-                          style: textStyle(
-                            fontSize: 28,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.blue700,
-                          ),
-                        ),
-                        pw.SizedBox(height: 4),
-                        pw.Container(
-                          width: 60,
-                          height: 3,
-                          color: PdfColors.blue700,
-                        ),
-
-                        if (summary.isNotEmpty) ...[
-                          pw.SizedBox(height: 20),
-                          pw.Text(
-                            'PROFIL',
-                            style: textStyle(
-                              fontSize: 14,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColors.blue700,
-                            ),
-                          ),
-                          pw.SizedBox(height: 8),
-                          pw.Text(summary, style: textStyle(fontSize: 11)),
-                        ],
-
-                        if (educations.isNotEmpty) ...[
-                          pw.SizedBox(height: 20),
-                          pw.Text(
-                            'PENDIDIKAN',
-                            style: textStyle(
-                              fontSize: 14,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColors.blue700,
-                            ),
-                          ),
-                          pw.SizedBox(height: 8),
-                          ...educations.map((edu) =>
-                              pw.Container(
-                                margin: const pw.EdgeInsets.only(bottom: 12),
-                                child: pw.Column(
-                                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                                  children: [
-                                    pw.Text(
-                                      edu.university,
-                                      style: textStyle(
-                                        fontWeight: pw.FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    pw.Text(edu.major, style: textStyle(fontSize: 11)),
-                                    pw.Text(
-                                      '${edu.startYear} - ${edu.endYear}',
-                                      style: textStyle(
-                                        fontSize: 10,
-                                        color: PdfColors.grey600,
-                                      ),
-                                    ),
-                                    if (edu.gpa != null)
-                                      pw.Text('IPK: ${edu.gpa}',
-                                          style: textStyle(fontSize: 10)),
-                                  ],
-                                ),
-                              ),
-                          ),
-                        ],
-
-                        if (experiences.isNotEmpty) ...[
-                          pw.SizedBox(height: 20),
-                          pw.Text(
-                            'PENGALAMAN',
-                            style: textStyle(
-                              fontSize: 14,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColors.blue700,
-                            ),
-                          ),
-                          pw.SizedBox(height: 8),
-                          ...experiences.map((exp) =>
-                              pw.Container(
-                                margin: const pw.EdgeInsets.only(bottom: 12),
-                                child: pw.Column(
-                                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                                  children: [
-                                    pw.Text(
-                                      exp.position,
-                                      style: textStyle(
-                                        fontWeight: pw.FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    pw.Text(
-                                      exp.organization,
-                                      style: textStyle(
-                                        fontSize: 11,
-                                        fontStyle: pw.FontStyle.italic,
-                                      ),
-                                    ),
-                                    pw.Text(
-                                      '${exp.startYear} - ${exp.endYear}',
-                                      style: textStyle(
-                                        fontSize: 10,
-                                        color: PdfColors.grey600,
-                                      ),
-                                    ),
-                                    pw.SizedBox(height: 4),
-                                    pw.Text(exp.description,
-                                        style: textStyle(fontSize: 10)),
-                                  ],
-                                ),
-                              ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ];
-        },
-      ),
-    );
-  }
-
-  static pw.Widget _buildCreativeContact(String icon, String text, {bool isWhite = false}) {
-    return pw.Container(
-      margin: const pw.EdgeInsets.only(bottom: 8),
-      child: pw.Row(
-        children: [
-          pw.Text(icon, style: textStyle(
-            color: isWhite ? PdfColors.white : PdfColors.black,
-            fontSize: 12,
-          )),
-          pw.SizedBox(width: 8),
-          pw.Expanded(
-            child: pw.Text(
-              text,
-              style: textStyle(
-                color: isWhite ? PdfColors.white : PdfColors.black,
-                fontSize: 10,
               ),
-            ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  // ============= TEMPLATE MODERN =============
-  static void _buildModernTemplate(
-      pw.Document pdf,
-      String fullName,
-      String email,
-      String phone,
-      String address,
-      String linkedin,
-      String github,
-      String summary,
-      List<Education> educations,
-      List<Experience> experiences,
-      List<Skill> skills,
-      pw.MemoryImage? profileImage,
-      ) {
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
-        build: (context) {
-          return [
-            pw.Container(
-              padding: const pw.EdgeInsets.only(bottom: 20),
-              decoration: const pw.BoxDecoration(
-                border: pw.Border(
-                  bottom: pw.BorderSide(color: PdfColors.grey400, width: 2),
-                ),
-              ),
-              child: pw.Row(
-                children: [
-                  if (profileImage != null)
-                    pw.Container(
-                      width: 70,
-                      height: 70,
-                      margin: const pw.EdgeInsets.only(right: 16),
-                      decoration: pw.BoxDecoration(
-                        shape: pw.BoxShape.circle,
-                        image: pw.DecorationImage(
-                          image: profileImage,
-                          fit: pw.BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                  pw.Expanded(
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.Text(
-                          fullName,
-                          style: textStyle(
-                            fontSize: 28,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.blueGrey800,
-                          ),
-                        ),
-                        pw.SizedBox(height: 4),
-                        pw.Text(
-                          email,
-                          style: textStyle(fontSize: 11, color: PdfColors.grey600),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+  // ── Creative: Sidebar section header ──
+  static pw.Widget _crSidebarSection(String label) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          label,
+          style: ts(fontSize: 8, fontWeight: pw.FontWeight.bold, color: _kWhite, letterSpacing: 1.8),
+        ),
+        pw.SizedBox(height: 5),
+        pw.Container(width: double.infinity, height: 0.5, color: const PdfColor(1, 1, 1, 0.4)),
+        pw.SizedBox(height: 10),
+      ],
+    );
+  }
 
-            pw.SizedBox(height: 20),
-
-            pw.Row(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Expanded(
-                  flex: 1,
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      _buildModernSection('CONTACT'),
-                      pw.SizedBox(height: 8),
-                      _buildModernInfo('Phone', phone),
-                      _buildModernInfo('Email', email),
-                      _buildModernInfo('Address', address),
-                      if (linkedin.isNotEmpty) _buildModernInfo('LinkedIn', linkedin),
-                      if (github.isNotEmpty) _buildModernInfo('GitHub', github),
-
-                      pw.SizedBox(height: 20),
-
-                      _buildModernSection('SKILLS'),
-                      pw.SizedBox(height: 8),
-                      ...skills.map((skill) =>
-                          pw.Container(
-                            margin: const pw.EdgeInsets.only(bottom: 6),
-                            child: pw.Row(
-                              children: [
-                                pw.Container(
-                                  width: 6,
-                                  height: 6,
-                                  margin: const pw.EdgeInsets.only(right: 8),
-                                  decoration: const pw.BoxDecoration(
-                                    color: PdfColors.blueGrey400,
-                                    shape: pw.BoxShape.circle,
-                                  ),
-                                ),
-                                pw.Text(skill.name, style: textStyle(fontSize: 10)),
-                              ],
-                            ),
-                          ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                pw.SizedBox(width: 20),
-
-                pw.Expanded(
-                  flex: 2,
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      if (summary.isNotEmpty) ...[
-                        _buildModernSection('PROFILE'),
-                        pw.SizedBox(height: 4),
-                        pw.Text(summary, style: textStyle(fontSize: 10)),
-                        pw.SizedBox(height: 16),
-                      ],
-
-                      if (educations.isNotEmpty) ...[
-                        _buildModernSection('EDUCATION'),
-                        pw.SizedBox(height: 8),
-                        ...educations.map((edu) => _buildModernEducation(edu)),
-                        pw.SizedBox(height: 16),
-                      ],
-
-                      if (experiences.isNotEmpty) ...[
-                        _buildModernSection('EXPERIENCE'),
-                        pw.SizedBox(height: 8),
-                        ...experiences.map((exp) => _buildModernExperience(exp)),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ];
-        },
+  // ── Creative: Contact row (label kecil + nilai) - rata kiri ──
+  static pw.Widget _crContactRow(String label, String value) {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 9),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            label.toUpperCase(),
+            style: ts(fontSize: 7.5, color: const PdfColor(1, 1, 1, 0.6), letterSpacing: 0.8),
+          ),
+          pw.SizedBox(height: 1),
+          pw.Text(value, style: ts(fontSize: 9.5, color: _kWhite)),
+        ],
       ),
     );
   }
 
-  static pw.Widget _buildModernSection(String title) {
-    return pw.Text(
-      title,
-      style: textStyle(
-        fontSize: 14,
-        fontWeight: pw.FontWeight.bold,
-        color: PdfColors.blueGrey800,
-      ).copyWith(letterSpacing: 1),
-    );
-  }
-
-  static pw.Widget _buildModernInfo(String label, String value) {
+  // ── Creative: Skill item (tanpa persentase) ──
+  static pw.Widget _crSkillItem(String name) {
     return pw.Container(
       margin: const pw.EdgeInsets.only(bottom: 6),
-      child: pw.Row(
+      child: pw.Text(
+        '• $name',
+        style: ts(fontSize: 9.5, color: _kWhite),
+      ),
+    );
+  }
+
+  // ── Creative: Right column section header ──
+  static pw.Widget _crRightSection(String title) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
+          children: [
+            pw.Container(width: 3, height: 13, color: _kBlue),
+            pw.SizedBox(width: 7),
+            pw.Text(
+              title,
+              style: ts(fontSize: 11, fontWeight: pw.FontWeight.bold, color: _kBlue, letterSpacing: 1.2),
+            ),
+          ],
+        ),
+        pw.SizedBox(height: 4),
+        pw.Container(width: double.infinity, height: 0.5, color: _kBlueLight),
+        pw.SizedBox(height: 10),
+      ],
+    );
+  }
+
+  // ── Creative: Experience item ──
+  static pw.Widget _crExperience(Experience exp) {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 13),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Container(
-            width: 70,
-            child: pw.Text(
-              label,
-              style: textStyle(
-                fontSize: 10,
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColors.grey700,
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Expanded(
+                child: pw.Text(exp.position,
+                    style: ts(fontSize: 11, fontWeight: pw.FontWeight.bold, color: _kBlack)),
               ),
-            ),
+              pw.SizedBox(width: 6),
+              _crDateBadge('${exp.startYear} – ${exp.endYear}'),
+            ],
           ),
-          pw.Expanded(
-            child: pw.Text(
-              value,
-              style: textStyle(fontSize: 10),
-            ),
-          ),
+          pw.SizedBox(height: 2),
+          pw.Text(exp.organization,
+              style: ts(fontSize: 10, fontStyle: pw.FontStyle.italic, color: _kGrey700)),
+          pw.SizedBox(height: 5),
+          pw.Text(exp.description,
+              style: ts(fontSize: 9.5, color: _kGrey800, lineSpacing: 1.3)),
         ],
       ),
     );
   }
 
-  static pw.Widget _buildModernEducation(Education edu) {
+  // ── Creative: Education item ──
+  static pw.Widget _crEducation(Education edu) {
     return pw.Container(
       margin: const pw.EdgeInsets.only(bottom: 12),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text(
-            edu.university,
-            style: textStyle(
-              fontWeight: pw.FontWeight.bold,
-              fontSize: 11,
-            ),
-          ),
-          pw.Text(
-            edu.major,
-            style: textStyle(fontSize: 10),
-          ),
-          pw.Text(
-            '${edu.startYear} - ${edu.endYear}',
-            style: textStyle(fontSize: 9, color: PdfColors.grey600),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static pw.Widget _buildModernExperience(Experience exp) {
-    return pw.Container(
-      margin: const pw.EdgeInsets.only(bottom: 12),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            exp.position,
-            style: textStyle(
-              fontWeight: pw.FontWeight.bold,
-              fontSize: 11,
-            ),
-          ),
-          pw.Text(
-            exp.organization,
-            style: textStyle(
-              fontSize: 10,
-              fontStyle: pw.FontStyle.italic,
-            ),
-          ),
-          pw.Text(
-            '${exp.startYear} - ${exp.endYear}',
-            style: textStyle(fontSize: 9, color: PdfColors.grey600),
-          ),
-          pw.SizedBox(height: 4),
-          pw.Text(
-            exp.description,
-            style: textStyle(fontSize: 9),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============= TEMPLATE MINIMAL =============
-  static void _buildMinimalTemplate(
-      pw.Document pdf,
-      String fullName,
-      String email,
-      String phone,
-      String address,
-      String linkedin,
-      String github,
-      String summary,
-      List<Education> educations,
-      List<Experience> experiences,
-      List<Skill> skills,
-      pw.MemoryImage? profileImage,
-      ) {
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(40),
-        build: (context) {
-          return [
-            pw.Center(
-              child: pw.Column(
-                children: [
-                  if (profileImage != null)
-                    pw.Container(
-                      width: 80,
-                      height: 80,
-                      margin: const pw.EdgeInsets.only(bottom: 12),
-                      child: pw.ClipOval(
-                        child: pw.Image(
-                          profileImage,
-                          fit: pw.BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                  pw.Text(
-                    fullName,
-                    style: textStyle(
-                      fontSize: 26,
-                      fontWeight: pw.FontWeight.normal,
-                    ),
-                  ),
-                  pw.SizedBox(height: 12),
-                  pw.Text(
-                    email,
-                    style: textStyle(fontSize: 10, color: PdfColors.grey700),
-                  ),
-                  pw.Text(
-                    phone,
-                    style: textStyle(fontSize: 10, color: PdfColors.grey700),
-                  ),
-                  if (address.isNotEmpty)
-                    pw.Text(
-                      address,
-                      style: textStyle(fontSize: 10, color: PdfColors.grey700),
-                    ),
-                ],
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Expanded(
+                child: pw.Text(edu.university,
+                    style: ts(fontSize: 11, fontWeight: pw.FontWeight.bold, color: _kBlack)),
               ),
-            ),
-
-            pw.SizedBox(height: 24),
-
-            if (summary.isNotEmpty) ...[
-              _buildMinimalSection(summary),
-              pw.SizedBox(height: 16),
+              pw.SizedBox(width: 6),
+              _crDateBadge('${edu.startYear} – ${edu.endYear}'),
             ],
-
-            if (educations.isNotEmpty) ...[
-              _buildMinimalSection('Education', isTitle: true),
-              pw.SizedBox(height: 8),
-              ...educations.map((edu) => _buildMinimalEducation(edu)),
-              pw.SizedBox(height: 16),
-            ],
-
-            if (experiences.isNotEmpty) ...[
-              _buildMinimalSection('Experience', isTitle: true),
-              pw.SizedBox(height: 8),
-              ...experiences.map((exp) => _buildMinimalExperience(exp)),
-              pw.SizedBox(height: 16),
-            ],
-
-            if (skills.isNotEmpty) ...[
-              _buildMinimalSection('Skills', isTitle: true),
-              pw.SizedBox(height: 8),
-              pw.Wrap(
-                spacing: 12,
-                runSpacing: 8,
-                children: skills.map((skill) =>
-                    pw.Text(
-                      '• ${skill.name}',
-                      style: textStyle(fontSize: 10),
-                    ),
-                ).toList(),
-              ),
-            ],
-          ];
-        },
-      ),
-    );
-  }
-
-  static pw.Widget _buildMinimalSection(String content, {bool isTitle = false}) {
-    if (isTitle) {
-      return pw.Text(
-        content.toUpperCase(),
-        style: textStyle(
-          fontSize: 12,
-          fontWeight: pw.FontWeight.bold,
-          color: PdfColors.grey800,
-        ).copyWith(letterSpacing: 1),
-      );
-    }
-    return pw.Text(
-      content,
-      style: textStyle(fontSize: 10).copyWith(height: 1.5),
-    );
-  }
-
-  static pw.Widget _buildMinimalEducation(Education edu) {
-    return pw.Container(
-      margin: const pw.EdgeInsets.only(bottom: 10),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            edu.university,
-            style: textStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
           ),
-          pw.Text(
-            edu.major,
-            style: textStyle(fontSize: 10),
-          ),
-          pw.Text(
-            '${edu.startYear} - ${edu.endYear}',
-            style: textStyle(fontSize: 9, color: PdfColors.grey600),
-          ),
+          pw.SizedBox(height: 2),
+          pw.Text(edu.major,
+              style: ts(fontSize: 10, fontStyle: pw.FontStyle.italic, color: _kGrey700)),
+          if (edu.gpa != null) ...[
+            pw.SizedBox(height: 1),
+            pw.Text('IPK: ${edu.gpa}', style: ts(fontSize: 9.5, color: _kGrey600)),
+          ],
         ],
       ),
     );
   }
 
-  static pw.Widget _buildMinimalExperience(Experience exp) {
+  // ── Creative: Date badge (kotak biru muda) ──
+  static pw.Widget _crDateBadge(String text) {
     return pw.Container(
-      margin: const pw.EdgeInsets.only(bottom: 10),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            exp.position,
-            style: textStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.Text(
-            exp.organization,
-            style: textStyle(fontSize: 10, fontStyle: pw.FontStyle.italic),
-          ),
-          pw.Text(
-            '${exp.startYear} - ${exp.endYear}',
-            style: textStyle(fontSize: 9, color: PdfColors.grey600),
-          ),
-          pw.Text(
-            exp.description,
-            style: textStyle(fontSize: 9),
-          ),
-        ],
+      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: pw.BoxDecoration(
+        color: _kBlueLight,
+        borderRadius: pw.BorderRadius.circular(3),
       ),
+      child: pw.Text(text, style: ts(fontSize: 8.5, color: _kBlueDark)),
     );
   }
 }

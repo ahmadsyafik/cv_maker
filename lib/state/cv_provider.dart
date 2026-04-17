@@ -42,6 +42,7 @@ class CVProvider extends ChangeNotifier {
   DocumentReference? get _doc => _uid != null
       ? FirebaseFirestore.instance.collection('users').doc(_uid)
       : null;
+
   Future<void> loadFromFirestore() async {
     if (_doc == null) return;
     _isLoading = true;
@@ -63,11 +64,11 @@ class CVProvider extends ChangeNotifier {
       _linkedin = cv['linkedin'] ?? '';
       _github = cv['github'] ?? '';
       _summary = cv['summary'] ?? '';
-      _profileImage = cv['profileImage'] ?? data['photoUrl'] ?? '';
+      _profileImage = cv['profileImage'] ?? data['profileImage'] ?? data['photoUrl'] ?? '';
 
       final templateStr = cv['template'] ?? 'ats';
       _selectedTemplate = CVTemplate.values.firstWhere(
-        (e) => e.name == templateStr,
+            (e) => e.name == templateStr,
         orElse: () => CVTemplate.ats,
       );
 
@@ -101,6 +102,9 @@ class CVProvider extends ChangeNotifier {
     if (_doc == null) return;
     try {
       await _doc!.set({
+        'fullName': _fullName,
+        'email': _email,
+        'profileImage': _profileImage,
         'cvData': {
           'fullName': _fullName,
           'email': _email,
@@ -209,39 +213,47 @@ class CVProvider extends ChangeNotifier {
     _saveToFirestore();
   }
 
+  // PERBAIKAN: Hitung progress CV dengan bobot yang seimbang
   double get cvProgress {
-    int totalFields = 0;
-    int filledFields = 0;
+    int completedItems = 0;
+    int totalItems = 4; // Data Diri, Pendidikan, Pengalaman, Skill
 
-    if (_fullName.isNotEmpty) filledFields++;
-    if (_email.isNotEmpty) filledFields++;
-    if (_phone.isNotEmpty) filledFields++;
-    if (_address.isNotEmpty) filledFields++;
-    if (_linkedin.isNotEmpty) filledFields++;
-    if (_github.isNotEmpty) filledFields++;
-    if (_summary.isNotEmpty) filledFields++;
-    totalFields += 7;
+    // 1. Cek Data Diri (apakah nama dan email sudah diisi?)
+    bool hasPersonalData = (_fullName.isNotEmpty && _fullName != 'Nama Lengkap') &&
+        (_email.isNotEmpty && _email != 'email@example.com');
+    if (hasPersonalData) completedItems++;
 
-    if (_educations.isNotEmpty) {
-      filledFields += _educations.length;
-      totalFields += _educations.length;
-    } else {
-      totalFields += 1;
+    // 2. Cek Pendidikan (apakah minimal 1 pendidikan yang lengkap?)
+    bool hasValidEducation = false;
+    for (var edu in _educations) {
+      if (edu.university.isNotEmpty &&
+          edu.major.isNotEmpty &&
+          edu.startYear.isNotEmpty &&
+          edu.endYear.isNotEmpty) {
+        hasValidEducation = true;
+        break;
+      }
     }
+    if (hasValidEducation) completedItems++;
 
-    if (_experiences.isNotEmpty) {
-      filledFields += _experiences.length;
-      totalFields += _experiences.length;
-    } else {
-      totalFields += 1;
+    // 3. Cek Pengalaman (apakah minimal 1 pengalaman yang lengkap?)
+    bool hasValidExperience = false;
+    for (var exp in _experiences) {
+      if (exp.organization.isNotEmpty &&
+          exp.position.isNotEmpty &&
+          exp.startYear.isNotEmpty &&
+          exp.endYear.isNotEmpty) {
+        hasValidExperience = true;
+        break;
+      }
     }
-    if (_skills.isNotEmpty) {
-      filledFields += _skills.length.clamp(0, 3);
-      totalFields += 3;
-    } else {
-      totalFields += 3;
-    }
-    return filledFields / totalFields;
+    if (hasValidExperience) completedItems++;
+
+    // 4. Cek Skill (apakah minimal 3 skill?)
+    if (_skills.isNotEmpty) completedItems++;
+
+    if (totalItems == 0) return 0.0;
+    return completedItems / totalItems;
   }
 
   void resetAll() {
