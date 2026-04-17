@@ -1,0 +1,10 @@
+> Task :url_launcher_android:signingReport
+Variant: debugAndroidTest
+Config: debug
+Store: /home/malakul-tech/.android/debug.keystore
+Alias: AndroidDebugKey
+MD5: E9:2F:B0:DC:11:16:D7:72:9B:C4:8B:5C:11:70:2D:33
+SHA1: 7F:F4:59:35:0B:45:13:7F:9E:66:5A:77:5A:9F:9A:7F:31:CA:8F:4F
+SHA-256: B2:9E:3C:9D:EA:33:29:1E:7E:0D:2B:6D:05:FF:8D:58:45:88:21:C1:DA:29:9E:63:04:8C:C1:04:AC:B6:C0:7B
+Valid until: Friday, February 18, 2056
+----------
