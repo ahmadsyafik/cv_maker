@@ -122,46 +122,103 @@ class _MainNavigationState extends State<MainNavigation> {
         index: _currentIndex,
         children: _pages,
       ),
-      bottomNavigationBar: NavigationBar(
-        elevation: 2,
-        height: 65,
-        backgroundColor: Colors.white, // Background putih
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: SizedBox(
+            height: 70,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildNavItem(
+                  index: 0,
+                  icon: Icons.home_outlined,
+                  selectedIcon: Icons.home,
+                  label: 'Beranda',
+                ),
+                _buildNavItem(
+                  index: 1,
+                  icon: Icons.edit_outlined,
+                  selectedIcon: Icons.edit,
+                  label: 'Buat CV',
+                ),
+                _buildNavItem(
+                  index: 2,
+                  icon: Icons.preview_outlined,
+                  selectedIcon: Icons.preview,
+                  label: 'Pratinjau',
+                ),
+                _buildNavItem(
+                  index: 3,
+                  icon: Icons.ios_share_outlined,
+                  selectedIcon: Icons.ios_share,
+                  label: 'Ekspor',
+                ),
+                _buildNavItem(
+                  index: 4,
+                  icon: Icons.person_outline,
+                  selectedIcon: Icons.person,
+                  label: 'Profil',
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required int index,
+    required IconData icon,
+    required IconData selectedIcon,
+    required String label,
+  }) {
+    final isSelected = _currentIndex == index;
+
+    return Expanded(
+      child: InkWell(
+        onTap: () {
           setState(() {
             _currentIndex = index;
           });
         },
-        indicatorColor: Colors.blue.shade100, // Indikator warna biru muda
-        surfaceTintColor: Colors.white,
-        shadowColor: Colors.black12,
-        destinations: [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined, color: Colors.grey.shade600),
-            selectedIcon: const Icon(Icons.home, color: Colors.blue),
-            label: 'Beranda',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.edit_outlined, color: Colors.grey.shade600),
-            selectedIcon: const Icon(Icons.edit, color: Colors.blue),
-            label: 'Buat CV',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.preview_outlined, color: Colors.grey.shade600),
-            selectedIcon: const Icon(Icons.preview, color: Colors.blue),
-            label: 'Pratinjau',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.ios_share_outlined, color: Colors.grey.shade600),
-            selectedIcon: const Icon(Icons.ios_share, color: Colors.blue),
-            label: 'Ekspor',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline, color: Colors.grey.shade600),
-            selectedIcon: const Icon(Icons.person, color: Colors.blue),
-            label: 'Profil',
-          ),
-        ],
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              transitionBuilder: (child, animation) {
+                return ScaleTransition(scale: animation, child: child);
+              },
+              child: Icon(
+                isSelected ? selectedIcon : icon,
+                key: ValueKey(isSelected),
+                color: isSelected ? Colors.blue : Colors.grey.shade600,
+                size: 24,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                color: isSelected ? Colors.blue : Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
