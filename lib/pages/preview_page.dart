@@ -116,6 +116,7 @@ class _PreviewPageState extends State<PreviewPage> {
     return Consumer<CVProvider>(
       builder: (context, cvProvider, child) {
         return Drawer(
+          backgroundColor: const Color(0xFFF5F7FA),
           child: SafeArea(
             child: Column(
               children: [
@@ -246,7 +247,7 @@ class _PreviewPageState extends State<PreviewPage> {
   Widget _buildMainContent() {
     if (_isLoading) {
       return Container(
-        color: Colors.grey.shade200, // Background loading abu-abu
+        color: Colors.grey.shade200,
         child: const Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -319,7 +320,7 @@ class _PreviewPageState extends State<PreviewPage> {
       canDebug: false,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       loadingWidget: Container(
-        color: Colors.grey.shade200, // Loading widget juga abu-abu
+        color: Colors.grey.shade200,
         child: const Center(
           child: CircularProgressIndicator(
             strokeWidth: 2,
@@ -327,13 +328,7 @@ class _PreviewPageState extends State<PreviewPage> {
           ),
         ),
       ),
-      pdfPreviewPageDecoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 15, spreadRadius: 1),
-        ],
-      ),
+      // HAPUS border radius dan boxShadow biar tampil persegi seperti kertas asli
       onError: (context, error) {
         debugPrint('PDF Preview Error: $error');
         return Center(

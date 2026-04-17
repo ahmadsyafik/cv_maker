@@ -84,7 +84,7 @@ class UserProvider extends ChangeNotifier {
         await fetchUserData();
       }
     } catch (e) {
-      print('Error updating profile: $e');
+      debugPrint('Error updating profile: $e');
       rethrow;
     }
   }
@@ -108,7 +108,7 @@ class UserProvider extends ChangeNotifier {
         await fetchUserData();
       }
     } catch (e) {
-      print('Error updating profile image: $e');
+      debugPrint('Error updating profile image: $e');
       rethrow;
     }
   }

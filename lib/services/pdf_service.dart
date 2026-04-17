@@ -26,13 +26,6 @@ const _kGrey100 = PdfColor.fromInt(0xFFF4F4F4);
 const _kWhite = PdfColors.white;
 const _kBlack = PdfColor.fromInt(0xFF111111);
 
-// Batasan maksimum untuk menjaga agar CV tetap 1 halaman
-const _maxExperiences = 3;
-const _maxEducations = 2;
-const _maxSkills = 8;
-const _maxSummaryLength = 300;
-const _maxDescriptionLength = 150;
-
 class PDFService {
   static late pw.Font _regularFont;
   static late pw.Font _boldFont;
@@ -75,36 +68,6 @@ class PDFService {
       bold: _boldFont,
       italic: _italicFont,
     );
-  }
-
-  // ───────────────────────── Validasi Data ─────────────────────────
-  static String? validateCVData({
-    required List<Education> educations,
-    required List<Experience> experiences,
-    required List<Skill> skills,
-    required String summary,
-  }) {
-    if (experiences.length > _maxExperiences) {
-      return 'Pengalaman kerja terlalu banyak (maksimal $_maxExperiences). Silakan kurangi atau edit data Anda.';
-    }
-    if (educations.length > _maxEducations) {
-      return 'Pendidikan terlalu banyak (maksimal $_maxEducations). Silakan kurangi atau edit data Anda.';
-    }
-    if (skills.length > _maxSkills) {
-      return 'Keahlian terlalu banyak (maksimal $_maxSkills). Silakan kurangi atau edit data Anda.';
-    }
-    if (summary.length > _maxSummaryLength) {
-      return 'Profil profesional terlalu panjang (maksimal $_maxSummaryLength karakter). Silakan edit data Anda.';
-    }
-
-    // Cek panjang deskripsi pengalaman
-    for (var exp in experiences) {
-      if (exp.description.length > _maxDescriptionLength) {
-        return 'Deskripsi "${exp.position}" terlalu panjang (maksimal $_maxDescriptionLength karakter). Silakan edit data Anda.';
-      }
-    }
-
-    return null;
   }
 
   // ───────────────────────── Text Style Helper ─────────────────────────
@@ -167,18 +130,6 @@ class PDFService {
     CVTemplate template = CVTemplate.ats,
     String? profileImage,
   }) async {
-    // Validasi data terlebih dahulu
-    final validationError = validateCVData(
-      educations: educations,
-      experiences: experiences,
-      skills: skills,
-      summary: summary,
-    );
-
-    if (validationError != null) {
-      throw Exception(validationError);
-    }
-
     await initializeFonts();
     final pdf = pw.Document(theme: await getTheme());
     final photo = await loadProfileImage(profileImage);
@@ -195,7 +146,7 @@ class PDFService {
     } catch (e) {
       debugPrint('Error generating PDF: $e');
       if (e.toString().contains('exceed a page height')) {
-        throw Exception('Data CV terlalu panjang untuk muat dalam 1 halaman. Silakan kurangi jumlah atau panjang teks pada data Anda.');
+        throw Exception('⚠️ Data CV terlalu panjang! Tidak muat dalam 1 halaman.\n\nSilakan kurangi:\nJumlah pengalaman kerja, Jumlah pendidikan, Jumlah keahlian\nAtau perpendek deskripsi');
       }
       rethrow;
     }
@@ -297,17 +248,17 @@ class PDFService {
           pw.SizedBox(height: 20),
           if (summary.isNotEmpty) ...[
             _atsSectionHeader('PROFIL PROFESIONAL'),
-            pw.Text(summary, style: ts(fontSize: 10.5, color: _kGrey800, lineSpacing: 1.5)),
+            pw.Text(summary, style: ts(fontSize: 10.5, color: _kGrey800, lineSpacing: 1.3)),
             pw.SizedBox(height: 14),
           ],
           if (experiences.isNotEmpty) ...[
             _atsSectionHeader('PENGALAMAN KERJA'),
-            ...experiences.take(_maxExperiences).map(_atsExperience),
+            ...experiences.map(_atsExperience),
             pw.SizedBox(height: 6),
           ],
           if (educations.isNotEmpty) ...[
             _atsSectionHeader('PENDIDIKAN'),
-            ...educations.take(_maxEducations).map(_atsEducation),
+            ...educations.map(_atsEducation),
             pw.SizedBox(height: 6),
           ],
           if (skills.isNotEmpty) ...[
@@ -316,7 +267,7 @@ class PDFService {
             pw.Wrap(
               spacing: 6,
               runSpacing: 5,
-              children: skills.take(_maxSkills).map((s) => _atsSkillChip(s.name)).toList(),
+              children: skills.map((s) => _atsSkillChip(s.name)).toList(),
             ),
           ],
         ],
@@ -350,7 +301,7 @@ class PDFService {
   // ── ATS: Experience Item ──
   static pw.Widget _atsExperience(Experience exp) {
     return pw.Container(
-      margin: const pw.EdgeInsets.only(bottom: 13),
+      margin: const pw.EdgeInsets.only(bottom: 10),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
@@ -370,9 +321,9 @@ class PDFService {
           pw.SizedBox(height: 2),
           pw.Text(exp.organization,
               style: ts(fontSize: 10.5, fontStyle: pw.FontStyle.italic, color: _kGrey700)),
-          pw.SizedBox(height: 5),
+          pw.SizedBox(height: 4),
           pw.Text(exp.description,
-              style: ts(fontSize: 10, color: _kGrey800, lineSpacing: 1.3)),
+              style: ts(fontSize: 10, color: _kGrey800, lineSpacing: 1.2)),
         ],
       ),
     );
@@ -381,7 +332,7 @@ class PDFService {
   // ── ATS: Education Item ──
   static pw.Widget _atsEducation(Education edu) {
     return pw.Container(
-      margin: const pw.EdgeInsets.only(bottom: 12),
+      margin: const pw.EdgeInsets.only(bottom: 10),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
@@ -449,7 +400,7 @@ class PDFService {
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              // ── Sidebar kiri (dengan border radius) ──
+              // ── Sidebar kiri ──
               pw.Container(
                 width: 172,
                 color: _kBlueSidebar,
@@ -496,7 +447,7 @@ class PDFService {
                     pw.SizedBox(height: 18),
                     // Skills (rata kiri)
                     _crSidebarSection('KEAHLIAN'),
-                    ...skills.take(_maxSkills).map((skill) => _crSkillItem(skill.name)),
+                    ...skills.map((skill) => _crSkillItem(skill.name)),
                   ],
                 ),
               ),
@@ -515,17 +466,17 @@ class PDFService {
                       if (summary.isNotEmpty) ...[
                         _crRightSection('PROFIL'),
                         pw.Text(summary,
-                            style: ts(fontSize: 10.5, color: _kGrey800, lineSpacing: 1.5)),
+                            style: ts(fontSize: 10.5, color: _kGrey800, lineSpacing: 1.3)),
                         pw.SizedBox(height: 16),
                       ],
                       if (experiences.isNotEmpty) ...[
                         _crRightSection('PENGALAMAN'),
-                        ...experiences.take(_maxExperiences).map(_crExperience),
+                        ...experiences.map(_crExperience),
                         pw.SizedBox(height: 8),
                       ],
                       if (educations.isNotEmpty) ...[
                         _crRightSection('PENDIDIKAN'),
-                        ...educations.take(_maxEducations).map(_crEducation),
+                        ...educations.map(_crEducation),
                       ],
                     ],
                   ),
@@ -572,7 +523,7 @@ class PDFService {
     );
   }
 
-  // ── Creative: Skill item (tanpa persentase) ──
+  // ── Creative: Skill item ──
   static pw.Widget _crSkillItem(String name) {
     return pw.Container(
       margin: const pw.EdgeInsets.only(bottom: 6),
@@ -609,7 +560,7 @@ class PDFService {
   // ── Creative: Experience item ──
   static pw.Widget _crExperience(Experience exp) {
     return pw.Container(
-      margin: const pw.EdgeInsets.only(bottom: 13),
+      margin: const pw.EdgeInsets.only(bottom: 10),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
@@ -628,9 +579,9 @@ class PDFService {
           pw.SizedBox(height: 2),
           pw.Text(exp.organization,
               style: ts(fontSize: 10, fontStyle: pw.FontStyle.italic, color: _kGrey700)),
-          pw.SizedBox(height: 5),
+          pw.SizedBox(height: 4),
           pw.Text(exp.description,
-              style: ts(fontSize: 9.5, color: _kGrey800, lineSpacing: 1.3)),
+              style: ts(fontSize: 9.5, color: _kGrey800, lineSpacing: 1.2)),
         ],
       ),
     );
@@ -639,7 +590,7 @@ class PDFService {
   // ── Creative: Education item ──
   static pw.Widget _crEducation(Education edu) {
     return pw.Container(
-      margin: const pw.EdgeInsets.only(bottom: 12),
+      margin: const pw.EdgeInsets.only(bottom: 10),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [

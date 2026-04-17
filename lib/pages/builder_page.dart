@@ -14,54 +14,54 @@ const _kBlue = Color(0xFF1565C0);
 const _kBg = Color(0xFFF5F7FA);
 
 InputDecoration _inputDeco(String hint, {IconData? prefix}) => InputDecoration(
-      hintText: hint,
-      hintStyle: GoogleFonts.poppins(color: Colors.grey.shade400, fontSize: 14),
-      prefixIcon: prefix != null
-          ? Icon(prefix, color: Colors.grey.shade400, size: 20)
-          : null,
-      filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey.shade400),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey.shade400),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: _kBlue, width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.red),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.red, width: 1.5),
-      ),
-    );
+  hintText: hint,
+  hintStyle: GoogleFonts.poppins(color: Colors.grey.shade400, fontSize: 14),
+  prefixIcon: prefix != null
+      ? Icon(prefix, color: Colors.grey.shade400, size: 20)
+      : null,
+  filled: true,
+  fillColor: Colors.white,
+  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+  border: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(12),
+    borderSide: BorderSide(color: Colors.grey.shade400),
+  ),
+  enabledBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(12),
+    borderSide: BorderSide(color: Colors.grey.shade400),
+  ),
+  focusedBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(12),
+    borderSide: const BorderSide(color: _kBlue, width: 1.5),
+  ),
+  errorBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(12),
+    borderSide: const BorderSide(color: Colors.red),
+  ),
+  focusedErrorBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(12),
+    borderSide: const BorderSide(color: Colors.red, width: 1.5),
+  ),
+);
 
 Widget _primaryButton(String label, VoidCallback onPressed) => SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: _kBlue,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600),
-        ),
-      ),
-    );
+  width: double.infinity,
+  child: ElevatedButton(
+    onPressed: onPressed,
+    style: ElevatedButton.styleFrom(
+      backgroundColor: _kBlue,
+      foregroundColor: Colors.white,
+      elevation: 0,
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      shape:
+      RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+    child: Text(
+      label,
+      style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600),
+    ),
+  ),
+);
 
 class BuilderPage extends StatefulWidget {
   const BuilderPage({super.key});
@@ -90,6 +90,7 @@ class _BuilderPageState extends State<BuilderPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _kBg,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         backgroundColor: _kBlue,
         elevation: 0,
@@ -111,9 +112,9 @@ class _BuilderPageState extends State<BuilderPage>
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white60,
           labelStyle:
-              GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600),
+          GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600),
           unselectedLabelStyle:
-              GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w400),
+          GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w400),
           tabs: const [
             Tab(text: 'Data Diri'),
             Tab(text: 'Pendidikan'),
@@ -183,18 +184,21 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
     final imageFile = await storageService.pickImage(fromCamera: false);
     if (imageFile == null) return;
 
-    if (!context.mounted) return;
+    if (!mounted) return;
     setState(() => _isUploadingPhoto = true);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Mengupload foto...')),
-    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mengupload foto...')),
+      );
+    }
 
     final url = await storageService.uploadProfilePhoto(imageFile);
 
-    if (!context.mounted) return;
+    if (!mounted) return;
     setState(() => _isUploadingPhoto = false);
 
-    if (url != null) {
+    if (url != null && mounted) {
       context.read<CVProvider>().updateProfileImage(url);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -202,7 +206,7 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
           backgroundColor: Colors.green,
         ),
       );
-    } else {
+    } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Gagal upload foto, coba lagi.'),
@@ -215,14 +219,14 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
   void _savePersonalData() {
     if (_formKey.currentState!.validate()) {
       context.read<CVProvider>().updatePersonalData(
-            fullName: _nameController.text,
-            email: _emailController.text,
-            phone: _phoneController.text,
-            address: _addressController.text,
-            linkedin: _linkedinController.text,
-            github: _githubController.text,
-            summary: _summaryController.text,
-          );
+        fullName: _nameController.text,
+        email: _emailController.text,
+        phone: _phoneController.text,
+        address: _addressController.text,
+        linkedin: _linkedinController.text,
+        github: _githubController.text,
+        summary: _summaryController.text,
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Data diri berhasil disimpan')),
       );
@@ -267,14 +271,14 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
                         ),
                         child: _isUploadingPhoto
                             ? const Padding(
-                                padding: EdgeInsets.all(6),
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
+                          padding: EdgeInsets.all(6),
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
                             : const Icon(Icons.camera_alt,
-                                color: Colors.white, size: 18),
+                            color: Colors.white, size: 18),
                       ),
                     ),
                   ),
@@ -286,9 +290,9 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
               controller: _nameController,
               style: GoogleFonts.poppins(fontSize: 14),
               decoration:
-                  _inputDeco('Nama Lengkap', prefix: Icons.person_outline),
+              _inputDeco('Nama Lengkap', prefix: Icons.person_outline),
               validator: (v) =>
-                  (v == null || v.isEmpty) ? 'Nama lengkap wajib diisi' : null,
+              (v == null || v.isEmpty) ? 'Nama lengkap wajib diisi' : null,
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -308,7 +312,7 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
               style: GoogleFonts.poppins(fontSize: 14),
               keyboardType: TextInputType.phone,
               decoration:
-                  _inputDeco('Nomor Telepon', prefix: Icons.phone_outlined),
+              _inputDeco('Nomor Telepon', prefix: Icons.phone_outlined),
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -316,7 +320,7 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
               style: GoogleFonts.poppins(fontSize: 14),
               maxLines: 3,
               decoration:
-                  _inputDeco('Alamat', prefix: Icons.location_on_outlined),
+              _inputDeco('Alamat', prefix: Icons.location_on_outlined),
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -361,6 +365,7 @@ class _EducationTabState extends State<EducationTab> {
   final _startYearController = TextEditingController();
   final _endYearController = TextEditingController();
   final _gpaController = TextEditingController();
+  int? _editingIndex;
 
   @override
   void dispose() {
@@ -372,7 +377,29 @@ class _EducationTabState extends State<EducationTab> {
     super.dispose();
   }
 
-  void _addEducation() {
+  void _clearForm() {
+    _universityController.clear();
+    _majorController.clear();
+    _startYearController.clear();
+    _endYearController.clear();
+    _gpaController.clear();
+    setState(() {
+      _editingIndex = null;
+    });
+  }
+
+  void _editEducation(int index, Education education) {
+    setState(() {
+      _editingIndex = index;
+      _universityController.text = education.university;
+      _majorController.text = education.major;
+      _startYearController.text = education.startYear;
+      _endYearController.text = education.endYear;
+      _gpaController.text = education.gpa?.toString() ?? '';
+    });
+  }
+
+  void _saveEducation() {
     if (_formKey.currentState!.validate()) {
       final education = Education(
         university: _universityController.text,
@@ -383,112 +410,141 @@ class _EducationTabState extends State<EducationTab> {
             ? double.tryParse(_gpaController.text)
             : null,
       );
-      context.read<CVProvider>().addEducation(education);
-      _universityController.clear();
-      _majorController.clear();
-      _startYearController.clear();
-      _endYearController.clear();
-      _gpaController.clear();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pendidikan berhasil ditambahkan')),
-      );
+
+      if (_editingIndex != null) {
+        context.read<CVProvider>().updateEducation(_editingIndex!, education);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pendidikan berhasil diperbarui')),
+        );
+      } else {
+        context.read<CVProvider>().addEducation(education);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pendidikan berhasil ditambahkan')),
+        );
+      }
+      _clearForm();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<CVProvider>(
-      builder: (context, cvProvider, child) {
-        return Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
               color: Colors.white,
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Tambah Pendidikan',
-                      style: GoogleFonts.poppins(
-                          fontSize: 15, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 14),
-                    TextFormField(
-                      controller: _universityController,
-                      style: GoogleFonts.poppins(fontSize: 14),
-                      decoration: _inputDeco('Nama Universitas'),
-                      validator: (v) => (v == null || v.isEmpty)
-                          ? 'Nama universitas wajib diisi'
-                          : null,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _majorController,
-                      style: GoogleFonts.poppins(fontSize: 14),
-                      decoration: _inputDeco('Jurusan'),
-                      validator: (v) => (v == null || v.isEmpty)
-                          ? 'Jurusan wajib diisi'
-                          : null,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _startYearController,
-                            style: GoogleFonts.poppins(fontSize: 14),
-                            keyboardType: TextInputType.number,
-                            decoration: _inputDeco('Tahun Mulai'),
-                            validator: (v) =>
-                                (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _editingIndex != null ? 'Edit Pendidikan' : 'Tambah Pendidikan',
+                        style: GoogleFonts.poppins(
+                            fontSize: 15, fontWeight: FontWeight.w600),
+                      ),
+                      if (_editingIndex != null)
+                        TextButton(
+                          onPressed: _clearForm,
+                          child: Text(
+                            'Batal',
+                            style: GoogleFonts.poppins(color: Colors.red),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _endYearController,
-                            style: GoogleFonts.poppins(fontSize: 14),
-                            keyboardType: TextInputType.number,
-                            decoration: _inputDeco('Tahun Selesai'),
-                            validator: (v) =>
-                                (v == null || v.isEmpty) ? 'Wajib diisi' : null,
-                          ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _universityController,
+                    style: GoogleFonts.poppins(fontSize: 14),
+                    decoration: _inputDeco('Nama Universitas'),
+                    validator: (v) => (v == null || v.isEmpty)
+                        ? 'Nama universitas wajib diisi'
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _majorController,
+                    style: GoogleFonts.poppins(fontSize: 14),
+                    decoration: _inputDeco('Jurusan'),
+                    validator: (v) => (v == null || v.isEmpty)
+                        ? 'Jurusan wajib diisi'
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _startYearController,
+                          style: GoogleFonts.poppins(fontSize: 14),
+                          keyboardType: TextInputType.number,
+                          decoration: _inputDeco('Tahun Mulai'),
+                          validator: (v) =>
+                          (v == null || v.isEmpty) ? 'Wajib diisi' : null,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _gpaController,
-                      style: GoogleFonts.poppins(fontSize: 14),
-                      keyboardType: TextInputType.number,
-                      decoration: _inputDeco('IPK (Opsional)'),
-                    ),
-                    const SizedBox(height: 16),
-                    _primaryButton('Tambah Pendidikan', _addEducation),
-                  ],
-                ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _endYearController,
+                          style: GoogleFonts.poppins(fontSize: 14),
+                          keyboardType: TextInputType.number,
+                          decoration: _inputDeco('Tahun Selesai'),
+                          validator: (v) =>
+                          (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _gpaController,
+                    style: GoogleFonts.poppins(fontSize: 14),
+                    keyboardType: TextInputType.number,
+                    decoration: _inputDeco('IPK (Opsional)'),
+                  ),
+                  const SizedBox(height: 16),
+                  _primaryButton(
+                    _editingIndex != null ? 'Update Pendidikan' : 'Tambah Pendidikan',
+                    _saveEducation,
+                  ),
+                ],
               ),
             ),
-            Expanded(
-              child: cvProvider.educations.isEmpty
-                  ? _emptyState('Belum ada data pendidikan')
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: cvProvider.educations.length,
-                      itemBuilder: (context, index) {
-                        return EducationCard(
-                          education: cvProvider.educations[index],
-                          onEdit: () {},
-                          onDelete: () => cvProvider.removeEducation(index),
-                        );
-                      },
+          ),
+          const SizedBox(height: 16),
+          Consumer<CVProvider>(
+            builder: (context, cvProvider, child) {
+              if (cvProvider.educations.isEmpty) {
+                return _emptyState('Belum ada data pendidikan');
+              }
+              return Column(
+                children: List.generate(
+                  cvProvider.educations.length,
+                      (index) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: EducationCard(
+                      education: cvProvider.educations[index],
+                      onEdit: () => _editEducation(index, cvProvider.educations[index]),
+                      onDelete: () => cvProvider.removeEducation(index),
                     ),
-            ),
-          ],
-        );
-      },
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
     );
   }
 }
@@ -507,6 +563,7 @@ class _ExperienceTabState extends State<ExperienceTab> {
   final _startYearController = TextEditingController();
   final _endYearController = TextEditingController();
   final _descriptionController = TextEditingController();
+  int? _editingIndex;
 
   @override
   void dispose() {
@@ -518,7 +575,29 @@ class _ExperienceTabState extends State<ExperienceTab> {
     super.dispose();
   }
 
-  void _addExperience() {
+  void _clearForm() {
+    _organizationController.clear();
+    _positionController.clear();
+    _startYearController.clear();
+    _endYearController.clear();
+    _descriptionController.clear();
+    setState(() {
+      _editingIndex = null;
+    });
+  }
+
+  void _editExperience(int index, Experience experience) {
+    setState(() {
+      _editingIndex = index;
+      _organizationController.text = experience.organization;
+      _positionController.text = experience.position;
+      _startYearController.text = experience.startYear;
+      _endYearController.text = experience.endYear;
+      _descriptionController.text = experience.description;
+    });
+  }
+
+  void _saveExperience() {
     if (_formKey.currentState!.validate()) {
       final experience = Experience(
         organization: _organizationController.text,
@@ -527,115 +606,144 @@ class _ExperienceTabState extends State<ExperienceTab> {
         endYear: _endYearController.text,
         description: _descriptionController.text,
       );
-      context.read<CVProvider>().addExperience(experience);
-      _organizationController.clear();
-      _positionController.clear();
-      _startYearController.clear();
-      _endYearController.clear();
-      _descriptionController.clear();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pengalaman berhasil ditambahkan')),
-      );
+
+      if (_editingIndex != null) {
+        context.read<CVProvider>().updateExperience(_editingIndex!, experience);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pengalaman berhasil diperbarui')),
+        );
+      } else {
+        context.read<CVProvider>().addExperience(experience);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pengalaman berhasil ditambahkan')),
+        );
+      }
+      _clearForm();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<CVProvider>(
-      builder: (context, cvProvider, child) {
-        return Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
               color: Colors.white,
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Tambah Pengalaman',
-                      style: GoogleFonts.poppins(
-                          fontSize: 15, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 14),
-                    TextFormField(
-                      controller: _organizationController,
-                      style: GoogleFonts.poppins(fontSize: 14),
-                      decoration: _inputDeco('Nama Organisasi/Perusahaan'),
-                      validator: (v) => (v == null || v.isEmpty)
-                          ? 'Nama organisasi wajib diisi'
-                          : null,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _positionController,
-                      style: GoogleFonts.poppins(fontSize: 14),
-                      decoration: _inputDeco('Posisi'),
-                      validator: (v) => (v == null || v.isEmpty)
-                          ? 'Posisi wajib diisi'
-                          : null,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _startYearController,
-                            style: GoogleFonts.poppins(fontSize: 14),
-                            keyboardType: TextInputType.number,
-                            decoration: _inputDeco('Tahun Mulai'),
-                            validator: (v) =>
-                                (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _editingIndex != null ? 'Edit Pengalaman' : 'Tambah Pengalaman',
+                        style: GoogleFonts.poppins(
+                            fontSize: 15, fontWeight: FontWeight.w600),
+                      ),
+                      if (_editingIndex != null)
+                        TextButton(
+                          onPressed: _clearForm,
+                          child: Text(
+                            'Batal',
+                            style: GoogleFonts.poppins(color: Colors.red),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _endYearController,
-                            style: GoogleFonts.poppins(fontSize: 14),
-                            keyboardType: TextInputType.number,
-                            decoration: _inputDeco('Tahun Selesai'),
-                            validator: (v) =>
-                                (v == null || v.isEmpty) ? 'Wajib diisi' : null,
-                          ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _organizationController,
+                    style: GoogleFonts.poppins(fontSize: 14),
+                    decoration: _inputDeco('Nama Organisasi/Perusahaan'),
+                    validator: (v) => (v == null || v.isEmpty)
+                        ? 'Nama organisasi wajib diisi'
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _positionController,
+                    style: GoogleFonts.poppins(fontSize: 14),
+                    decoration: _inputDeco('Posisi'),
+                    validator: (v) => (v == null || v.isEmpty)
+                        ? 'Posisi wajib diisi'
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _startYearController,
+                          style: GoogleFonts.poppins(fontSize: 14),
+                          keyboardType: TextInputType.number,
+                          decoration: _inputDeco('Tahun Mulai'),
+                          validator: (v) =>
+                          (v == null || v.isEmpty) ? 'Wajib diisi' : null,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _descriptionController,
-                      style: GoogleFonts.poppins(fontSize: 14),
-                      maxLines: 3,
-                      decoration: _inputDeco('Deskripsi'),
-                      validator: (v) => (v == null || v.isEmpty)
-                          ? 'Deskripsi wajib diisi'
-                          : null,
-                    ),
-                    const SizedBox(height: 16),
-                    _primaryButton('Tambah Pengalaman', _addExperience),
-                  ],
-                ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _endYearController,
+                          style: GoogleFonts.poppins(fontSize: 14),
+                          keyboardType: TextInputType.number,
+                          decoration: _inputDeco('Tahun Selesai'),
+                          validator: (v) =>
+                          (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _descriptionController,
+                    style: GoogleFonts.poppins(fontSize: 14),
+                    maxLines: 3,
+                    decoration: _inputDeco('Deskripsi'),
+                    validator: (v) => (v == null || v.isEmpty)
+                        ? 'Deskripsi wajib diisi'
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  _primaryButton(
+                    _editingIndex != null ? 'Update Pengalaman' : 'Tambah Pengalaman',
+                    _saveExperience,
+                  ),
+                ],
               ),
             ),
-            Expanded(
-              child: cvProvider.experiences.isEmpty
-                  ? _emptyState('Belum ada data pengalaman')
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: cvProvider.experiences.length,
-                      itemBuilder: (context, index) {
-                        return ExperienceCard(
-                          experience: cvProvider.experiences[index],
-                          onEdit: () {},
-                          onDelete: () => cvProvider.removeExperience(index),
-                        );
-                      },
+          ),
+          const SizedBox(height: 16),
+          Consumer<CVProvider>(
+            builder: (context, cvProvider, child) {
+              if (cvProvider.experiences.isEmpty) {
+                return _emptyState('Belum ada data pengalaman');
+              }
+              return Column(
+                children: List.generate(
+                  cvProvider.experiences.length,
+                      (index) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: ExperienceCard(
+                      experience: cvProvider.experiences[index],
+                      onEdit: () => _editExperience(index, cvProvider.experiences[index]),
+                      onDelete: () => cvProvider.removeExperience(index),
                     ),
-            ),
-          ],
-        );
-      },
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
     );
   }
 }
@@ -667,76 +775,80 @@ class _SkillTabState extends State<SkillTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<CVProvider>(
-      builder: (context, cvProvider, child) {
-        return Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
               color: Colors.white,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _skillController,
-                      style: GoogleFonts.poppins(fontSize: 14),
-                      decoration: _inputDeco('Tambah Skill'),
-                      onSubmitted: (_) => _addSkill(),
-                    ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _skillController,
+                    style: GoogleFonts.poppins(fontSize: 14),
+                    decoration: _inputDeco('Tambah Skill'),
+                    onSubmitted: (_) => _addSkill(),
                   ),
-                  const SizedBox(width: 12),
-                  Material(
-                    color: _kBlue,
+                ),
+                const SizedBox(width: 12),
+                Material(
+                  color: _kBlue,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    onTap: _addSkill,
                     borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      onTap: _addSkill,
-                      borderRadius: BorderRadius.circular(12),
-                      child: const SizedBox(
-                        width: 48,
-                        height: 48,
-                        child: Icon(Icons.add, color: Colors.white, size: 24),
-                      ),
+                    child: const SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: Icon(Icons.add, color: Colors.white, size: 24),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            Expanded(
-              child: cvProvider.skills.isEmpty
-                  ? _emptyState('Belum ada skill ditambahkan')
-                  : SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
-                      child: Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: List.generate(
-                          cvProvider.skills.length,
-                          (index) => SkillChip(
-                            label: cvProvider.skills[index].name,
-                            onDelete: () => cvProvider.removeSkill(index),
-                          ),
-                        ),
-                      ),
-                    ),
-            ),
-          ],
-        );
-      },
+          ),
+          const SizedBox(height: 16),
+          Consumer<CVProvider>(
+            builder: (context, cvProvider, child) {
+              if (cvProvider.skills.isEmpty) {
+                return _emptyState('Belum ada skill ditambahkan');
+              }
+              return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: List.generate(
+                  cvProvider.skills.length,
+                      (index) => SkillChip(
+                    label: cvProvider.skills[index].name,
+                    onDelete: () => cvProvider.removeSkill(index),
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
     );
   }
 }
 
-Widget _emptyState(String message) => Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.inbox_outlined, size: 56, color: Colors.grey.shade400),
-          const SizedBox(height: 12),
-          Text(
-            message,
-            style:
-                GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade400),
-          ),
-        ],
+Widget _emptyState(String message) => Container(
+  padding: const EdgeInsets.symmetric(vertical: 40),
+  child: Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Icon(Icons.inbox_outlined, size: 56, color: Colors.grey.shade400),
+      const SizedBox(height: 12),
+      Text(
+        message,
+        style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade400),
       ),
-    );
+    ],
+  ),
+);

@@ -436,41 +436,64 @@ class ProfilePage extends StatelessWidget {
             // Hapus field email karena tidak perlu diupdate
           ],
         ),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              // Validasi input
-              if (nameController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Nama lengkap tidak boleh kosong')),
-                );
-                return;
-              }
-              
-              // Update hanya nama dan phone, email tidak diubah
-              await userProvider.updateProfile(
-                fullName: nameController.text.trim(),
-                phone: phoneController.text.trim(),
-                // Hapus parameter email
-              );
-              
-              if (!context.mounted) return;
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Profile berhasil diperbarui')),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1565C0),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
+          SizedBox(
+            width: double.infinity, // 🔥 biar full lebar
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      side: BorderSide(color: Colors.blue.shade500),
+                    ),
+                    child: const Text('Batal',
+                      style: TextStyle(
+                        color: Color(0xFF2196F3),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      if (nameController.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Nama lengkap tidak boleh kosong')),
+                        );
+                        return;
+                      }
+
+                      await userProvider.updateProfile(
+                        fullName: nameController.text.trim(),
+                        phone: phoneController.text.trim(),
+                      );
+
+                      if (!context.mounted) return;
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Profile berhasil diperbarui')),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1565C0),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text('Simpan'),
+                  ),
+                ),
+              ],
             ),
-            child: const Text('Simpan'),
           ),
         ],
       ),
@@ -482,6 +505,8 @@ class ProfilePage extends StatelessWidget {
     final packageInfo = await PackageInfo.fromPlatform();
     final version = packageInfo.version;
     final buildNumber = packageInfo.buildNumber;
+
+    if (!context.mounted) return;
 
     showDialog(
       context: context,
@@ -576,10 +601,14 @@ class ProfilePage extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
-                        side: BorderSide(color: Colors.grey.shade300),
+                        side: BorderSide(color: Colors.blue.shade500),
                       ),
                     ),
-                    child: const Text('Batal'),
+                    child: const Text('Batal',
+                      style: TextStyle(
+                        color: Color(0xFF2196F3),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
