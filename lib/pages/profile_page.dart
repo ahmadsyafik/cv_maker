@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../state/cv_provider.dart';
 import '../providers/user_provider.dart';
 import '../services/storage_service.dart';
@@ -29,7 +30,6 @@ class ProfilePage extends StatelessWidget {
       ),
       body: Consumer<UserProvider>(
         builder: (context, userProvider, child) {
-          // Gunakan data dari UserProvider
           final displayName = userProvider.fullName.isNotEmpty
               ? userProvider.fullName
               : firebaseUser?.displayName ?? 'Nama Lengkap';
@@ -47,7 +47,7 @@ class ProfilePage extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  // Profile Header - Card dengan lebar penuh
+                  // Profile Header
                   SizedBox(
                     width: double.infinity,
                     child: Card(
@@ -62,20 +62,8 @@ class ProfilePage extends StatelessWidget {
                           children: [
                             Stack(
                               children: [
-                                CircleAvatar(
-                                  radius: 55,
-                                  backgroundColor: Colors.blue.shade50,
-                                  backgroundImage: profileImage.isNotEmpty
-                                      ? NetworkImage(profileImage)
-                                      : null,
-                                  child: profileImage.isEmpty
-                                      ? Icon(
-                                    Icons.person,
-                                    size: 55,
-                                    color: Colors.blue.shade400,
-                                  )
-                                      : null,
-                                ),
+                                // Profile Image dengan CachedNetworkImage
+                                _buildProfileImage(profileImage),
                                 Positioned(
                                   bottom: 0,
                                   right: 0,
@@ -120,10 +108,9 @@ class ProfilePage extends StatelessWidget {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 20),
-
-                  // Menu Profile - Card dengan lebar penuh
+                  
+                  // Menu Profile
                   SizedBox(
                     width: double.infinity,
                     child: Card(
@@ -151,14 +138,12 @@ class ProfilePage extends StatelessWidget {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 20),
-
-                  // Informasi Akun - Card dengan lebar penuh (Data Dinamis dari Firebase)
+                  
+                  // Informasi Akun
                   _buildAccountInfoCard(),
-
                   const SizedBox(height: 20),
-
+                  
                   // Logout Button
                   SizedBox(
                     width: double.infinity,
@@ -181,13 +166,54 @@ class ProfilePage extends StatelessWidget {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 20),
                 ],
               ),
             ),
           );
         },
+      ),
+    );
+  }
+
+  // Widget untuk profile image dengan CachedNetworkImage (VERSI YANG SUDAH DIPERBAIKI)
+  Widget _buildProfileImage(String imageUrl) {
+    if (imageUrl.isEmpty) {
+      return CircleAvatar(
+        radius: 55,
+        backgroundColor: Colors.blue.shade50,
+        child: Icon(
+          Icons.person,
+          size: 55,
+          color: Colors.blue.shade400,
+        ),
+      );
+    }
+
+    return CircleAvatar(
+      radius: 55,
+      backgroundColor: Colors.blue.shade50,
+      child: ClipOval(
+        child: CachedNetworkImage(
+          imageUrl: imageUrl,
+          fit: BoxFit.cover,
+          width: 110,
+          height: 110,
+          placeholder: (context, url) => const Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1565C0)),
+            ),
+          ),
+          errorWidget: (context, url, error) => Icon(
+            Icons.person,
+            size: 55,
+            color: Colors.blue.shade400,
+          ),
+          // Hanya gunakan parameter yang didukung
+          cacheKey: imageUrl,
+          // Hapus maxWidth, maxHeight, memCacheWidth, memCacheHeight
+        ),
       ),
     );
   }
@@ -233,7 +259,6 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  // Widget untuk Informasi Akun dengan data dinamis dari Firebase
   Widget _buildAccountInfoCard() {
     return FutureBuilder<DocumentSnapshot>(
       future: _getUserDataFromFirestore(),
@@ -253,7 +278,6 @@ class ProfilePage extends StatelessWidget {
             }
           }
           
-          // Ambil status dari Firestore jika ada
           if (data != null && data.containsKey('status')) {
             status = data['status'];
           }
@@ -309,7 +333,6 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  // Fungsi untuk mengambil data user dari Firestore
   Future<DocumentSnapshot> _getUserDataFromFirestore() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
@@ -321,7 +344,6 @@ class ProfilePage extends StatelessWidget {
     throw Exception('User not logged in');
   }
 
-  // Fungsi untuk mendapatkan nama bulan dalam Bahasa Indonesia
   String _getMonthName(int month) {
     const months = [
       'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -334,7 +356,6 @@ class ProfilePage extends StatelessWidget {
       BuildContext context, UserProvider userProvider) async {
     final storageService = StorageService();
 
-    // Pilih sumber foto
     final source = await showModalBottomSheet<bool>(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -372,26 +393,71 @@ class ProfilePage extends StatelessWidget {
 
     if (source == null) return;
 
-    final imageFile = await storageService.pickImage(fromCamera: source);
-    if (imageFile == null) return;
-
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Mengupload foto...')),
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Material(
+          color: Colors.transparent,
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1565C0)),
+          ),
+        ),
+      ),
     );
 
-    final url = await storageService.uploadProfilePhoto(imageFile);
+    try {
+      final imageFile = await storageService.pickImage(fromCamera: source);
+      
+      if (imageFile == null) {
+        if (context.mounted) Navigator.pop(context);
+        return;
+      }
 
-    if (url != null) {
-      await userProvider.updateProfileImage(url);
+      if (!context.mounted) {
+        if (context.mounted) Navigator.pop(context);
+        return;
+      }
+
+      final url = await storageService.uploadProfilePhoto(imageFile);
+
+      if (context.mounted) Navigator.pop(context); // Close loading
+
+      if (url != null) {
+        // Update URL di provider
+        await userProvider.updateProfileImage(url);
+        
+        // Clear cache untuk gambar ini
+        await CachedNetworkImage.evictFromCache(url);
+        
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Foto profil berhasil diperbarui!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Refresh user data
+        await userProvider.fetchUserData();
+      } else {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gagal upload foto, coba lagi.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) Navigator.pop(context);
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Foto profil berhasil diperbarui!')),
-      );
-    } else {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Gagal upload foto, coba lagi.')),
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -399,7 +465,6 @@ class ProfilePage extends StatelessWidget {
   void _showEditProfileDialog(BuildContext context, UserProvider userProvider) {
     final nameController = TextEditingController(text: userProvider.fullName);
     final phoneController = TextEditingController(text: userProvider.phone);
-    // Hapus emailController - email tidak bisa diubah dari sini
 
     showDialog(
       context: context,
@@ -433,7 +498,6 @@ class ProfilePage extends StatelessWidget {
               ),
               keyboardType: TextInputType.phone,
             ),
-            // Hapus field email karena tidak perlu diupdate
           ],
         ),
         actions: [
@@ -443,7 +507,6 @@ class ProfilePage extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () async {
-              // Validasi input
               if (nameController.text.trim().isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Nama lengkap tidak boleh kosong')),
@@ -451,11 +514,9 @@ class ProfilePage extends StatelessWidget {
                 return;
               }
               
-              // Update hanya nama dan phone, email tidak diubah
               await userProvider.updateProfile(
                 fullName: nameController.text.trim(),
                 phone: phoneController.text.trim(),
-                // Hapus parameter email
               );
               
               if (!context.mounted) return;
@@ -478,7 +539,6 @@ class ProfilePage extends StatelessWidget {
   }
 
   void _showAboutAppDialog(BuildContext context) async {
-    // Get package info
     final packageInfo = await PackageInfo.fromPlatform();
     final version = packageInfo.version;
     final buildNumber = packageInfo.buildNumber;
@@ -590,11 +650,15 @@ class ProfilePage extends StatelessWidget {
                       userProvider.reset();
                       cvProvider.resetAll();
                       await FirebaseAuth.instance.signOut();
+                      
+                      // Clear cache gambar saat logout
+                      await CachedNetworkImage.evictFromCache('*');
+                      
                       if (!context.mounted) return;
                       Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(builder: (_) => const LandingPage()),
-                            (route) => false,
+                        (route) => false,
                       );
                     },
                     style: ElevatedButton.styleFrom(

@@ -144,6 +144,7 @@ class PersonalDataTab extends StatefulWidget {
 
 class _PersonalDataTabState extends State<PersonalDataTab> {
   final _formKey = GlobalKey<FormState>();
+  
   late TextEditingController _nameController;
   late TextEditingController _emailController;
   late TextEditingController _phoneController;
@@ -151,19 +152,39 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
   late TextEditingController _linkedinController;
   late TextEditingController _githubController;
   late TextEditingController _summaryController;
+  
   bool _isUploadingPhoto = false;
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    final cv = context.read<CVProvider>();
-    _nameController = TextEditingController(text: cv.fullName);
-    _emailController = TextEditingController(text: cv.email);
-    _phoneController = TextEditingController(text: cv.phone);
-    _addressController = TextEditingController(text: cv.address);
-    _linkedinController = TextEditingController(text: cv.linkedin);
-    _githubController = TextEditingController(text: cv.github);
-    _summaryController = TextEditingController(text: cv.summary);
+    // Buat controller dengan nilai kosong dulu
+    _nameController = TextEditingController();
+    _emailController = TextEditingController();
+    _phoneController = TextEditingController();
+    _addressController = TextEditingController();
+    _summaryController = TextEditingController();
+    _linkedinController = TextEditingController();
+    _githubController = TextEditingController();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    
+    // Isi data dari provider setelah context tersedia
+    if (!_isInitialized) {
+      final cv = Provider.of<CVProvider>(context, listen: false);
+      _nameController.text = cv.fullName ?? '';
+      _emailController.text = cv.email ?? '';
+      _phoneController.text = cv.phone ?? '';
+      _addressController.text = cv.address ?? '';
+      _summaryController.text = cv.summary ?? '';
+      _linkedinController.text = cv.linkedin ?? '';
+      _githubController.text = cv.github ?? '';
+      _isInitialized = true;
+    }
   }
 
   @override
@@ -189,13 +210,13 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
       const SnackBar(content: Text('Mengupload foto...')),
     );
 
-    final url = await storageService.uploadProfilePhoto(imageFile);
+    final url = await storageService.uploadCVPhoto(imageFile);
 
     if (!context.mounted) return;
     setState(() => _isUploadingPhoto = false);
 
     if (url != null) {
-      context.read<CVProvider>().updateProfileImage(url);
+      context.read<CVProvider>().updateCVPhoto(url);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Foto berhasil diupload!'),
@@ -241,17 +262,21 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
               child: Stack(
                 children: [
                   Consumer<CVProvider>(
-                    builder: (context, cv, _) => CircleAvatar(
-                      key: ValueKey(cv.profileImage),
-                      radius: 50,
-                      backgroundColor: const Color(0xFFE3F2FD),
-                      backgroundImage: cv.profileImage.isNotEmpty
-                          ? NetworkImage("${cv.profileImage}&t=${DateTime.now().millisecondsSinceEpoch}")
-                          : null,
-                      child: cv.profileImage.isEmpty
-                          ? const Icon(Icons.person, size: 48, color: _kBlue)
-                          : null,
-                    ),
+                    builder: (context, cv, _) {
+                      final String currentPhoto = cv.fotoCV ?? '';
+                      
+                      return CircleAvatar(
+                        key: ValueKey(currentPhoto),
+                        radius: 50,
+                        backgroundColor: const Color(0xFFE3F2FD),
+                        backgroundImage: currentPhoto.isNotEmpty
+                            ? NetworkImage(currentPhoto)
+                            : null,
+                        child: currentPhoto.isEmpty
+                            ? const Icon(Icons.person, size: 48, color: _kBlue)
+                            : null,
+                      );
+                    },
                   ),
                   Positioned(
                     bottom: 0,

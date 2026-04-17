@@ -14,7 +14,7 @@ class CVProvider extends ChangeNotifier {
   String _address = '';
   String _linkedin = '';
   String _github = '';
-  String _profileImage = '';
+  String _fotoCV = ''; // Laci khusus foto CV
   CVTemplate _selectedTemplate = CVTemplate.ats;
   String _summary = '';
   bool _isLoading = false;
@@ -30,19 +30,21 @@ class CVProvider extends ChangeNotifier {
   String get address => _address;
   String get linkedin => _linkedin;
   String get github => _github;
-  String get profileImage => _profileImage;
+  String get fotoCV => _fotoCV; // Getter untuk foto CV
   String get summary => _summary;
   bool get isLoading => _isLoading;
   CVTemplate get selectedTemplate => _selectedTemplate;
   List<Education> get educations => List.unmodifiable(_educations);
   List<Experience> get experiences => List.unmodifiable(_experiences);
   List<Skill> get skills => List.unmodifiable(_skills);
+  
   String? get _uid => FirebaseAuth.instance.currentUser?.uid;
 
   DocumentReference? get _doc => _uid != null
       ? FirebaseFirestore.instance.collection('users').doc(_uid)
       : null;
 
+  // Memuat data dari Firestore
   Future<void> loadFromFirestore() async {
     if (_doc == null) return;
     _isLoading = true;
@@ -57,6 +59,7 @@ class CVProvider extends ChangeNotifier {
       }
       final data = snap.data() as Map<String, dynamic>;
       final cv = data['cvData'] as Map<String, dynamic>? ?? {};
+      
       _fullName = cv['fullName'] ?? data['fullName'] ?? '';
       _email = cv['email'] ?? data['email'] ?? '';
       _phone = cv['phone'] ?? '';
@@ -64,8 +67,10 @@ class CVProvider extends ChangeNotifier {
       _linkedin = cv['linkedin'] ?? '';
       _github = cv['github'] ?? '';
       _summary = cv['summary'] ?? '';
-      _profileImage = cv['profileImage'] ?? data['profileImage'] ?? data['photoUrl'] ?? '';
-
+      
+      // Mengambil foto khusus CV dari field profileImage di dalam cvData
+      _fotoCV = cv['profileImage'] ?? ''; 
+      
       final templateStr = cv['template'] ?? 'ats';
       _selectedTemplate = CVTemplate.values.firstWhere(
             (e) => e.name == templateStr,
@@ -97,14 +102,16 @@ class CVProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Save semua data ke Firestore
+  // Menyimpan data ke Firestore
   Future<void> _saveToFirestore() async {
     if (_doc == null) return;
     try {
       await _doc!.set({
+        // Data utama user (biarkan tetap sinkron)
         'fullName': _fullName,
         'email': _email,
-        'profileImage': _profileImage,
+        
+        // Data detail CV
         'cvData': {
           'fullName': _fullName,
           'email': _email,
@@ -113,7 +120,7 @@ class CVProvider extends ChangeNotifier {
           'linkedin': _linkedin,
           'github': _github,
           'summary': _summary,
-          'profileImage': _profileImage,
+          'profileImage': _fotoCV, // Menyimpan URL foto CV
           'template': _selectedTemplate.name,
           'educations': _educations.map((e) => e.toJson()).toList(),
           'experiences': _experiences.map((e) => e.toJson()).toList(),
@@ -123,6 +130,13 @@ class CVProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Save error: $e');
     }
+  }
+
+  // Fungsi khusus untuk update foto dari Builder Page
+  void updateCVPhoto(String imageUrl) {
+    _fotoCV = imageUrl; 
+    notifyListeners();
+    _saveToFirestore();
   }
 
   void setTemplate(CVTemplate template) {
@@ -157,13 +171,8 @@ class CVProvider extends ChangeNotifier {
     _saveToFirestore();
   }
 
-  void updateProfileImage(String imageUrl) {
-    _profileImage = imageUrl;
-    notifyListeners();
-    _saveToFirestore();
-  }
-
-  // ── Education ──────────────────────────────────────────────────────────────
+  // ── Education, Experience, Skill Methods ──────────────────────────────────
+  
   void addEducation(Education education) {
     _educations.add(education);
     notifyListeners();
@@ -182,7 +191,6 @@ class CVProvider extends ChangeNotifier {
     _saveToFirestore();
   }
 
-  // ── Experience ─────────────────────────────────────────────────────────────
   void addExperience(Experience experience) {
     _experiences.add(experience);
     notifyListeners();
@@ -213,49 +221,29 @@ class CVProvider extends ChangeNotifier {
     _saveToFirestore();
   }
 
-  // PERBAIKAN: Hitung progress CV dengan bobot yang seimbang
+  // Menghitung progress pengisian CV
   double get cvProgress {
     int completedItems = 0;
-    int totalItems = 4; // Data Diri, Pendidikan, Pengalaman, Skill
+    const int totalItems = 4;
 
-    // 1. Cek Data Diri (apakah nama dan email sudah diisi?)
     bool hasPersonalData = (_fullName.isNotEmpty && _fullName != 'Nama Lengkap') &&
         (_email.isNotEmpty && _email != 'email@example.com');
     if (hasPersonalData) completedItems++;
 
-    // 2. Cek Pendidikan (apakah minimal 1 pendidikan yang lengkap?)
-    bool hasValidEducation = false;
-    for (var edu in _educations) {
-      if (edu.university.isNotEmpty &&
-          edu.major.isNotEmpty &&
-          edu.startYear.isNotEmpty &&
-          edu.endYear.isNotEmpty) {
-        hasValidEducation = true;
-        break;
-      }
-    }
+    bool hasValidEducation = _educations.any((edu) => 
+      edu.university.isNotEmpty && edu.major.isNotEmpty);
     if (hasValidEducation) completedItems++;
 
-    // 3. Cek Pengalaman (apakah minimal 1 pengalaman yang lengkap?)
-    bool hasValidExperience = false;
-    for (var exp in _experiences) {
-      if (exp.organization.isNotEmpty &&
-          exp.position.isNotEmpty &&
-          exp.startYear.isNotEmpty &&
-          exp.endYear.isNotEmpty) {
-        hasValidExperience = true;
-        break;
-      }
-    }
+    bool hasValidExperience = _experiences.any((exp) => 
+      exp.organization.isNotEmpty && exp.position.isNotEmpty);
     if (hasValidExperience) completedItems++;
 
-    // 4. Cek Skill (apakah minimal 3 skill?)
     if (_skills.isNotEmpty) completedItems++;
 
-    if (totalItems == 0) return 0.0;
     return completedItems / totalItems;
   }
 
+  // Reset semua data CV
   void resetAll() {
     _fullName = '';
     _email = '';
@@ -263,7 +251,7 @@ class CVProvider extends ChangeNotifier {
     _address = '';
     _linkedin = '';
     _github = '';
-    _profileImage = '';
+    _fotoCV = ''; // Sudah diperbaiki dari _profileImage
     _summary = '';
     _selectedTemplate = CVTemplate.ats;
     _educations.clear();

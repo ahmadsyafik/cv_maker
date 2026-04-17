@@ -53,7 +53,7 @@ class _PreviewPageState extends State<PreviewPage> {
         experiences: cvProvider.experiences,
         skills: cvProvider.skills,
         template: cvProvider.selectedTemplate,
-        profileImage: cvProvider.profileImage.isNotEmpty ? cvProvider.profileImage : null,
+        profileImage: cvProvider.fotoCV.isNotEmpty ? cvProvider.fotoCV : null,
       );
 
       if (mounted) {
