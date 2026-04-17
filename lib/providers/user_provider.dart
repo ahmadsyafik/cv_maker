@@ -7,95 +7,113 @@ class UserProvider extends ChangeNotifier {
   String _email = '';
   String _phone = '';
   String _profileImage = '';
-  bool _isLoading = false;
 
-  // Getters
   String get fullName => _fullName;
   String get email => _email;
   String get phone => _phone;
   String get profileImage => _profileImage;
-  bool get isLoading => _isLoading;
 
-  String? get _uid => FirebaseAuth.instance.currentUser?.uid;
-  DocumentReference? get _doc => _uid != null
-      ? FirebaseFirestore.instance.collection('users').doc(_uid)
-      : null;
-
-  // Load user data dari Firestore
+  // Method untuk load user data (alternatif nama)
   Future<void> loadUserData() async {
-    if (_doc == null) return;
-    _isLoading = true;
-    notifyListeners();
+    await fetchUserData();
+  }
 
-    try {
-      final snap = await _doc!.get();
-      if (!snap.exists) {
-        _isLoading = false;
+  // Fetch user data from Firestore
+  Future<void> fetchUserData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      
+      if (userDoc.exists) {
+        final data = userDoc.data()!;
+        _fullName = data['fullName'] ?? user.displayName ?? '';
+        _email = user.email ?? '';
+        _phone = data['phone'] ?? '';
+        _profileImage = user.photoURL ?? data['profileImage'] ?? '';
         notifyListeners();
-        return;
+      } else {
+        // If document doesn't exist, create it
+        await _createUserDocument(user);
       }
-
-      final data = snap.data() as Map<String, dynamic>;
-
-      // Prioritas: data dari Firestore > data dari Firebase Auth
-      _fullName = data['fullName'] ??
-          FirebaseAuth.instance.currentUser?.displayName ??
-          '';
-      _email = data['email'] ??
-          FirebaseAuth.instance.currentUser?.email ??
-          '';
-      _phone = data['phone'] ?? '';
-      _profileImage = data['photoUrl'] ??
-          FirebaseAuth.instance.currentUser?.photoURL ??
-          '';
-    } catch (e) {
-      debugPrint('Load user data error: $e');
     }
-
-    _isLoading = false;
-    notifyListeners();
   }
 
-  // Update profil user
+  // Create user document if not exists
+  Future<void> _createUserDocument(User user) async {
+    final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    await userDoc.set({
+      'fullName': user.displayName ?? '',
+      'email': user.email ?? '',
+      'phone': '',
+      'profileImage': user.photoURL ?? '',
+      'createdAt': FieldValue.serverTimestamp(),
+      'status': 'Aktif',
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await fetchUserData(); // Refresh data
+  }
+
+  // Update profile (only name and phone)
   Future<void> updateProfile({
-    String? fullName,
-    String? email,
+    required String fullName,
     String? phone,
-    String? profileImage,
   }) async {
-    if (fullName != null) _fullName = fullName;
-    if (email != null) _email = email;
-    if (phone != null) _phone = phone;
-    if (profileImage != null) _profileImage = profileImage;
-
-    notifyListeners();
-    await _saveToFirestore();
-  }
-
-  // Update foto profil
-  Future<void> updateProfileImage(String imageUrl) async {
-    _profileImage = imageUrl;
-    notifyListeners();
-    await _saveToFirestore();
-  }
-
-  // Simpan ke Firestore
-  Future<void> _saveToFirestore() async {
-    if (_doc == null) return;
     try {
-      await _doc!.set({
-        'fullName': _fullName,
-        'email': _email,
-        'phone': _phone,
-        'photoUrl': _profileImage,
-        'lastUpdated': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Update displayName di Firebase Auth
+        await user.updateDisplayName(fullName);
+        
+        // Update di Firestore
+        final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+        final updateData = {
+          'fullName': fullName,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        
+        if (phone != null && phone.isNotEmpty) {
+          updateData['phone'] = phone;
+        }
+        
+        await userDoc.update(updateData);
+        
+        // Refresh data lokal
+        await fetchUserData();
+      }
     } catch (e) {
-      debugPrint('Save user data error: $e');
+      print('Error updating profile: $e');
+      rethrow;
     }
   }
 
-  // Reset saat logout
+  // Update profile image
+  Future<void> updateProfileImage(String imageUrl) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Update photoURL di Firebase Auth
+        await user.updatePhotoURL(imageUrl);
+        
+        // Update di Firestore
+        final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+        await userDoc.update({
+          'profileImage': imageUrl,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        
+        // Refresh data lokal
+        await fetchUserData();
+      }
+    } catch (e) {
+      print('Error updating profile image: $e');
+      rethrow;
+    }
+  }
+
+  // Reset user data (for logout)
   void reset() {
     _fullName = '';
     _email = '';

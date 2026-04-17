@@ -86,7 +86,7 @@ class AuthWrapper extends StatelessWidget {
         if (snapshot.hasData) {
           // Load data dari Firestore saat user berhasil login
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            context.read<UserProvider>().loadUserData();
+            context.read<UserProvider>().fetchUserData();
             context.read<CVProvider>().loadFromFirestore();
           });
           return const MainNavigation();
