@@ -22,38 +22,97 @@ class UserProvider extends ChangeNotifier {
   Future<void> fetchUserData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      
-      if (userDoc.exists) {
-        final data = userDoc.data()!;
-        _fullName = data['fullName'] ?? user.displayName ?? '';
-        _email = user.email ?? '';
-        _phone = data['phone'] ?? '';
-        _profileImage = user.photoURL ?? data['profileImage'] ?? '';
-        notifyListeners();
-      } else {
-        // If document doesn't exist, create it
-        await _createUserDocument(user);
+      try {
+        // Refresh user data terlebih dahulu
+        await user.reload();
+        final refreshedUser = FirebaseAuth.instance.currentUser;
+        
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        
+        if (userDoc.exists) {
+          final data = userDoc.data()!;
+          _fullName = data['fullName'] ?? refreshedUser?.displayName ?? '';
+          _email = refreshedUser?.email ?? user.email ?? '';
+          _phone = data['phone'] ?? '';
+          
+          // PRIORITASKAN dari Firestore dulu, baru dari Auth
+          final firestoreImage = data['profileImage'] ?? '';
+          final authImage = refreshedUser?.photoURL ?? '';
+          
+          // Gunakan yang dari Firestore karena lebih reliable
+          _profileImage = firestoreImage.isNotEmpty ? firestoreImage : authImage;
+          
+          print('✅ FetchUserData - Firestore image: $firestoreImage');
+          print('✅ FetchUserData - Auth image: $authImage');
+          print('✅ FetchUserData - Final image: $_profileImage');
+          
+          notifyListeners();
+        } else {
+          // If document doesn't exist, create it
+          await _createUserDocument(user);
+        }
+      } catch (e) {
+        print('❌ Error fetching user data: $e');
       }
     }
   }
 
   // Create user document if not exists
   Future<void> _createUserDocument(User user) async {
-    final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
-    await userDoc.set({
-      'fullName': user.displayName ?? '',
-      'email': user.email ?? '',
-      'phone': '',
-      'profileImage': user.photoURL ?? '',
-      'createdAt': FieldValue.serverTimestamp(),
-      'status': 'Aktif',
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-    await fetchUserData(); // Refresh data
+    try {
+      final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      await userDoc.set({
+        'fullName': user.displayName ?? '',
+        'email': user.email ?? '',
+        'phone': '',
+        'profileImage': user.photoURL ?? '',
+        'createdAt': FieldValue.serverTimestamp(),
+        'status': 'Aktif',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      print('✅ User document created for: ${user.uid}');
+      await fetchUserData(); // Refresh data
+    } catch (e) {
+      print('❌ Error creating user document: $e');
+    }
+  }
+
+  // Method khusus untuk refresh profile image
+  Future<void> refreshProfileImage() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        await user.reload();
+        final refreshedUser = FirebaseAuth.instance.currentUser;
+        
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        
+        if (userDoc.exists) {
+          final firestoreImage = userDoc.data()?['profileImage'] ?? '';
+          final authImage = refreshedUser?.photoURL ?? '';
+          
+          // Prioritaskan Firestore
+          _profileImage = firestoreImage.isNotEmpty ? firestoreImage : authImage;
+          
+          // Sinkronkan ke Auth jika Firestore punya gambar tapi Auth tidak
+          if (firestoreImage.isNotEmpty && authImage != firestoreImage) {
+            await user.updatePhotoURL(firestoreImage);
+            print('✅ Synced image from Firestore to Auth: $firestoreImage');
+          }
+          
+          print('✅ RefreshProfileImage - Final image: $_profileImage');
+          notifyListeners();
+        }
+      } catch (e) {
+        print('❌ Error refreshing profile image: $e');
+      }
+    }
   }
 
   // Update profile (only name and phone)
@@ -80,11 +139,13 @@ class UserProvider extends ChangeNotifier {
         
         await userDoc.update(updateData);
         
+        print('✅ Profile updated for: ${user.uid}');
+        
         // Refresh data lokal
         await fetchUserData();
       }
     } catch (e) {
-      print('Error updating profile: $e');
+      print('❌ Error updating profile: $e');
       rethrow;
     }
   }
@@ -94,8 +155,11 @@ class UserProvider extends ChangeNotifier {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
+        print('📤 Updating profile image to: $imageUrl');
+        
         // Update photoURL di Firebase Auth
         await user.updatePhotoURL(imageUrl);
+        await user.reload();
         
         // Update di Firestore
         final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
@@ -104,11 +168,21 @@ class UserProvider extends ChangeNotifier {
           'updatedAt': FieldValue.serverTimestamp(),
         });
         
+        // Verifikasi data tersimpan
+        final savedDoc = await userDoc.get();
+        final savedImage = savedDoc.data()?['profileImage'];
+        final authImage = FirebaseAuth.instance.currentUser?.photoURL;
+        
+        print('✅ Saved image in Firestore: $savedImage');
+        print('✅ Saved image in Auth: $authImage');
+        
         // Refresh data lokal
         await fetchUserData();
+        
+        print('✅ Profile image updated successfully');
       }
     } catch (e) {
-      print('Error updating profile image: $e');
+      print('❌ Error updating profile image: $e');
       rethrow;
     }
   }
@@ -120,5 +194,6 @@ class UserProvider extends ChangeNotifier {
     _phone = '';
     _profileImage = '';
     notifyListeners();
+    print('🔄 UserProvider reset - all data cleared');
   }
 }

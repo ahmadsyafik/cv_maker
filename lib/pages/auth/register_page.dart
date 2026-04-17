@@ -22,6 +22,9 @@ class _RegisterPageState extends State<RegisterPage> {
 
   final DraggableScrollableController _draggableController = DraggableScrollableController();
 
+  // Google Sign In instance (tanpa serverClientId)
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -82,6 +85,7 @@ class _RegisterPageState extends State<RegisterPage> {
         'email': _emailController.text.trim(),
         'createdAt': FieldValue.serverTimestamp(),
         'cvData': {},
+        'registerMethod': 'email',
       });
 
       await FirebaseAuth.instance.signOut();
@@ -139,42 +143,72 @@ class _RegisterPageState extends State<RegisterPage> {
   Future<void> _registerWithGoogle() async {
     setState(() => _isLoading = true);
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      // Sign out dulu untuk memastikan tidak ada session tersisa
+      await _googleSignIn.signOut();
+      
+      // Mulai proses sign in Google
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      
       if (googleUser == null) {
-        setState(() => _isLoading = false);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Registrasi dibatalkan'),
+            backgroundColor: Colors.orange,
+          ),
+        );
         return;
       }
-      final GoogleSignInAuthentication googleAuth =
-      await googleUser.authentication;
+      
+      // Dapatkan authentication details
+      final GoogleSignInAuthentication googleAuth = 
+        await googleUser.authentication;
+      
+      // Buat credential untuk Firebase
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
-      final userCredential =
-      await FirebaseAuth.instance.signInWithCredential(credential);
+      
+      // Login ke Firebase dengan credential Google
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
       final user = userCredential.user!;
-
+      
+      // Cek apakah user sudah ada di Firestore
       final doc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .get();
-
+      
+      // Jika belum ada, buat dokumen baru
       if (!doc.exists) {
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-          'fullName': user.displayName ?? '',
-          'email': user.email ?? '',
+          'fullName': user.displayName ?? googleUser.displayName ?? '',
+          'email': user.email ?? googleUser.email ?? '',
           'createdAt': FieldValue.serverTimestamp(),
           'cvData': {},
+          'registerMethod': 'google',
+          'photoUrl': user.photoURL ?? '',
         });
       }
-
+      
       if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(context, '/main', (route) => false);
+      
     } catch (e) {
+      print('Google Register Error: $e');
       if (!mounted) return;
+      
+      String message = 'Gagal daftar dengan Google';
+      if (e.toString().contains('10')) {
+        message = 'Error 10: Konfigurasi SHA-1 tidak cocok. Periksa Firebase Console.';
+      } else if (e.toString().contains('NETWORK_ERROR')) {
+        message = 'Periksa koneksi internet Anda';
+      }
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal daftar dengan Google: $e'),
+          content: Text(message),
           backgroundColor: Colors.red,
         ),
       );
@@ -190,7 +224,7 @@ class _RegisterPageState extends State<RegisterPage> {
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // Background SVG (STATIS)
+          // Background SVG
           SvgPicture.asset(
             'assets/background/background.svg',
             width: double.infinity,
@@ -198,7 +232,7 @@ class _RegisterPageState extends State<RegisterPage> {
             fit: BoxFit.cover,
           ),
 
-          // Overlay gradient (STATIS)
+          // Overlay gradient
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -212,7 +246,7 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
           ),
 
-          // Tombol back (STATIS di atas)
+          // Tombol back
           Positioned(
             top: 0,
             left: 0,

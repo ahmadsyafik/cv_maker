@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:provider/provider.dart'; // Tambahkan ini
 import 'register_page.dart';
 import 'forgot_password_page.dart';
+import '../../providers/user_provider.dart'; // Sesuaikan path dengan user_provider Anda
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -20,6 +22,9 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
 
   final DraggableScrollableController _draggableController = DraggableScrollableController();
+
+  // Google Sign In instance (tanpa serverClientId, karena sudah di firebase_options.dart)
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   @override
   void dispose() {
@@ -57,6 +62,10 @@ class _LoginPageState extends State<LoginPage> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+      
+      // TAMBAHKAN INI - Load data user setelah login sukses
+      await _loadUserDataAfterLogin();
+      
       if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(context, '/main', (route) => false);
     } on FirebaseAuthException catch (e) {
@@ -78,25 +87,56 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _loginWithGoogle() async {
     setState(() => _isLoading = true);
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      // Sign out dulu untuk memastikan tidak ada session tersisa
+      await _googleSignIn.signOut();
+      
+      // Mulai proses sign in Google
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      
       if (googleUser == null) {
-        setState(() => _isLoading = false);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Login dibatalkan'),
+            backgroundColor: Colors.orange,
+          ),
+        );
         return;
       }
-      final GoogleSignInAuthentication googleAuth =
-      await googleUser.authentication;
+      
+      // Dapatkan authentication details
+      final GoogleSignInAuthentication googleAuth = 
+        await googleUser.authentication;
+      
+      // Buat credential untuk Firebase
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
+      
+      // Login ke Firebase dengan credential Google
       await FirebaseAuth.instance.signInWithCredential(credential);
+      
+      // TAMBAHKAN INI - Load data user setelah login sukses
+      await _loadUserDataAfterLogin();
+      
       if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(context, '/main', (route) => false);
+      
     } catch (e) {
+      print('Google Sign-In Error: $e');
       if (!mounted) return;
+      
+      String message = 'Gagal login dengan Google';
+      if (e.toString().contains('10')) {
+        message = 'Error 10: Konfigurasi SHA-1 tidak cocok. Periksa Firebase Console.';
+      } else if (e.toString().contains('NETWORK_ERROR')) {
+        message = 'Periksa koneksi internet Anda';
+      }
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal login dengan Google: $e'),
+          content: Text(message),
           backgroundColor: Colors.red,
         ),
       );
@@ -105,16 +145,32 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  // TAMBAHKAN METHOD INI - Untuk load data user setelah login
+  Future<void> _loadUserDataAfterLogin() async {
+    try {
+      // Dapatkan UserProvider
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      
+      // Fetch data user dari Firestore
+      await userProvider.fetchUserData();
+      
+      // Refresh profile image untuk memastikan sinkron
+      await userProvider.refreshProfileImage();
+      
+      print('✅ User data loaded successfully after login');
+    } catch (e) {
+      print('❌ Error loading user data after login: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-
     return Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // Background SVG (STATIS)
+          // Background SVG
           SvgPicture.asset(
             'assets/background/background.svg',
             width: double.infinity,
@@ -122,7 +178,7 @@ class _LoginPageState extends State<LoginPage> {
             fit: BoxFit.cover,
           ),
 
-          // Overlay gradient (STATIS)
+          // Overlay gradient
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -136,7 +192,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
 
-          // Tombol back (STATIS di atas)
+          // Tombol back
           Positioned(
             top: 0,
             left: 0,
@@ -157,12 +213,12 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
 
-          // Draggable bottomsheet (bisa ditarik ke atas/bawah)
+          // Draggable bottomsheet
           DraggableScrollableSheet(
             controller: _draggableController,
-            initialChildSize: 0.75, // Ukuran awal 75% dari layar
-            minChildSize: 0.5,      // Ukuran minimal 50% dari layar
-            maxChildSize: 0.95,     // Ukuran maksimal 95% dari layar
+            initialChildSize: 0.75,
+            minChildSize: 0.5,
+            maxChildSize: 0.95,
             builder: (context, scrollController) {
               return Container(
                 decoration: const BoxDecoration(
@@ -177,7 +233,6 @@ class _LoginPageState extends State<LoginPage> {
                   physics: const BouncingScrollPhysics(),
                   child: Column(
                     children: [
-                      // Handle/indicator untuk drag
                       Container(
                         margin: const EdgeInsets.only(top: 12),
                         width: 40,
