@@ -1,10 +1,61 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'forgot_password_page.dart';
 
 class CheckEmailPage extends StatelessWidget {
   final String email;
   const CheckEmailPage({super.key, required this.email});
+
+  Future<void> _openEmailApp() async {
+    // Coba buka Gmail app terlebih dahulu
+    final Uri gmailApp = Uri.parse('googlegmail://co');
+    
+    try {
+      // Cek apakah Gmail app terinstall
+      if (await canLaunchUrl(gmailApp)) {
+        await launchUrl(gmailApp);
+      } else {
+        // Jika Gmail tidak ada, coba buka email client default
+        final Uri emailUri = Uri(scheme: 'mailto', path: email);
+        if (await canLaunchUrl(emailUri)) {
+          await launchUrl(emailUri);
+        } else {
+          // Fallback terakhir: buka browser ke Gmail web
+          final Uri webGmail = Uri.parse('https://mail.google.com');
+          await launchUrl(webGmail);
+        }
+      }
+    } catch (e) {
+      // Jika semua gagal, fallback ke web
+      final Uri webGmail = Uri.parse('https://mail.google.com');
+      await launchUrl(webGmail);
+      debugPrint('Error opening email: $e');
+    }
+  }
+
+  Future<void> _resendEmail(BuildContext context) async {
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Email berhasil dikirim ulang'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal kirim ulang: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -80,14 +131,7 @@ class CheckEmailPage extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  // Kembali ke landing page
-                  Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    '/',
-                    (route) => false,
-                  );
-                },
+                onPressed: _openEmailApp,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1565C0),
                   foregroundColor: Colors.white,
@@ -106,9 +150,22 @@ class CheckEmailPage extends StatelessWidget {
             const SizedBox(height: 24),
             Column(
               children: [
-                Text(
-                  'Lewati, Akan saya konfirmasi nanti',
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      '/',
+                      (route) => false,
+                    );
+                  },
+                  child: Text(
+                    'Lewati, Akan saya konfirmasi nanti',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey.shade500,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 RichText(
@@ -119,27 +176,7 @@ class CheckEmailPage extends StatelessWidget {
                       const TextSpan(text: 'Tidak menerima email? '),
                       WidgetSpan(
                         child: GestureDetector(
-                          onTap: () async {
-                            try {
-                              await FirebaseAuth.instance
-                                  .sendPasswordResetEmail(email: email);
-                              if (!context.mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Email berhasil dikirim ulang'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            } catch (e) {
-                              if (!context.mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Gagal kirim ulang: $e'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          },
+                          onTap: () => _resendEmail(context),
                           child: const Text(
                             'Kirim ulang email',
                             style: TextStyle(
@@ -166,7 +203,7 @@ class CheckEmailPage extends StatelessWidget {
                     );
                   },
                   child: const Text(
-                    'coba alamat email lain',
+                    'Coba alamat email lain',
                     style: TextStyle(
                       fontSize: 13,
                       color: Color(0xFF1565C0),

@@ -17,14 +17,19 @@ import 'pages/auth/landing_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
 
-  // Jalankan dengan DevicePreview
+  // ✅ Fix paling aman untuk duplicate Firebase
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (_) {
+    // Sudah di-initialize → abaikan
+  }
+
   runApp(
     DevicePreview(
-      enabled: false, // Set ke false untuk production
+      enabled: false,
       builder: (context) => const MyApp(),
     ),
   );
@@ -83,14 +88,16 @@ class AuthWrapper extends StatelessWidget {
             body: Center(child: CircularProgressIndicator()),
           );
         }
+
         if (snapshot.hasData) {
-          // Load data dari Firestore saat user berhasil login
+          // Load data setelah login
           WidgetsBinding.instance.addPostFrameCallback((_) {
             context.read<UserProvider>().fetchUserData();
             context.read<CVProvider>().loadFromFirestore();
           });
           return const MainNavigation();
         }
+
         return const LandingPage();
       },
     );
@@ -125,39 +132,39 @@ class _MainNavigationState extends State<MainNavigation> {
       bottomNavigationBar: NavigationBar(
         elevation: 2,
         height: 65,
-        backgroundColor: Colors.white, // Background putih
+        backgroundColor: Colors.white,
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
           setState(() {
             _currentIndex = index;
           });
         },
-        indicatorColor: Colors.blue.shade100, // Indikator warna biru muda
+        indicatorColor: Colors.blue.shade100,
         surfaceTintColor: Colors.white,
         shadowColor: Colors.black12,
         destinations: [
           NavigationDestination(
-            icon: Icon(Icons.home_outlined, color: Colors.grey.shade600),
+            icon: Icon(Icons.home_outlined, color: Colors.grey),
             selectedIcon: const Icon(Icons.home, color: Colors.blue),
             label: 'Beranda',
           ),
           NavigationDestination(
-            icon: Icon(Icons.edit_outlined, color: Colors.grey.shade600),
+            icon: Icon(Icons.edit_outlined, color: Colors.grey),
             selectedIcon: const Icon(Icons.edit, color: Colors.blue),
             label: 'Buat CV',
           ),
           NavigationDestination(
-            icon: Icon(Icons.preview_outlined, color: Colors.grey.shade600),
+            icon: Icon(Icons.preview_outlined, color: Colors.grey),
             selectedIcon: const Icon(Icons.preview, color: Colors.blue),
             label: 'Pratinjau',
           ),
           NavigationDestination(
-            icon: Icon(Icons.ios_share_outlined, color: Colors.grey.shade600),
+            icon: Icon(Icons.ios_share_outlined, color: Colors.grey),
             selectedIcon: const Icon(Icons.ios_share, color: Colors.blue),
             label: 'Ekspor',
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outline, color: Colors.grey.shade600),
+            icon: Icon(Icons.person_outline, color: Colors.grey),
             selectedIcon: const Icon(Icons.person, color: Colors.blue),
             label: 'Profil',
           ),

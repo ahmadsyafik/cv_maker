@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "427541291405",
+    "project_id": "cv-maker-30930",
+    "storage_bucket": "cv-maker-30930.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:427541291405:android:7bd2d605a6e910a3029dc4",
+        "android_client_info": {
+          "package_name": "com.example.cv_maker"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "427541291405-c9jnp69v59jk30fdak6oqeqou9nas5jg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.cv_maker",
+            "certificate_hash": "7ff459350b45137f9e665a775a9f9a7f31ca8f4f"
+          }
+        },
+        {
+          "client_id": "427541291405-4qur3ifn5b7utqdb16j01bgkahiafudt.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBFCwdsCMJHlA5CBghwdcQ11KMy0NSDWYw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "427541291405-4qur3ifn5b7utqdb16j01bgkahiafudt.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

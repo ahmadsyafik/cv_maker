@@ -14,8 +14,6 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final firebaseUser = FirebaseAuth.instance.currentUser;
-
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
@@ -30,15 +28,30 @@ class ProfilePage extends StatelessWidget {
       ),
       body: Consumer<UserProvider>(
         builder: (context, userProvider, child) {
+          final firebaseUser = FirebaseAuth.instance.currentUser;
+          
+          if (firebaseUser == null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (context.mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LandingPage()),
+                  (route) => false,
+                );
+              }
+            });
+            return const Center(child: CircularProgressIndicator());
+          }
+
           final displayName = userProvider.fullName.isNotEmpty
               ? userProvider.fullName
-              : firebaseUser?.displayName ?? 'Nama Lengkap';
+              : firebaseUser.displayName ?? 'Nama Lengkap';
           final displayEmail = userProvider.email.isNotEmpty
               ? userProvider.email
-              : firebaseUser?.email ?? 'email@example.com';
+              : firebaseUser.email ?? 'email@example.com';
           final profileImage = userProvider.profileImage.isNotEmpty
               ? userProvider.profileImage
-              : firebaseUser?.photoURL ?? '';
+              : firebaseUser.photoURL ?? '';
 
           return RefreshIndicator(
             onRefresh: () => userProvider.fetchUserData(),
@@ -47,7 +60,6 @@ class ProfilePage extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  // Profile Header
                   SizedBox(
                     width: double.infinity,
                     child: Card(
@@ -62,7 +74,6 @@ class ProfilePage extends StatelessWidget {
                           children: [
                             Stack(
                               children: [
-                                // Profile Image dengan CachedNetworkImage
                                 _buildProfileImage(profileImage),
                                 Positioned(
                                   bottom: 0,
@@ -109,8 +120,6 @@ class ProfilePage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  
-                  // Menu Profile
                   SizedBox(
                     width: double.infinity,
                     child: Card(
@@ -139,12 +148,8 @@ class ProfilePage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  
-                  // Informasi Akun
-                  _buildAccountInfoCard(),
+                  _buildAccountInfoCard(firebaseUser.uid),
                   const SizedBox(height: 20),
-                  
-                  // Logout Button
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
@@ -176,7 +181,6 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  // Widget untuk profile image dengan CachedNetworkImage (VERSI YANG SUDAH DIPERBAIKI)
   Widget _buildProfileImage(String imageUrl) {
     if (imageUrl.isEmpty) {
       return CircleAvatar(
@@ -210,9 +214,7 @@ class ProfilePage extends StatelessWidget {
             size: 55,
             color: Colors.blue.shade400,
           ),
-          // Hanya gunakan parameter yang didukung
           cacheKey: imageUrl,
-          // Hapus maxWidth, maxHeight, memCacheWidth, memCacheHeight
         ),
       ),
     );
@@ -244,31 +246,32 @@ class ProfilePage extends StatelessWidget {
   }
 
   Widget _buildInfoRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-        ),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+          ),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildAccountInfoCard() {
+  Widget _buildAccountInfoCard(String userId) {
     return FutureBuilder<DocumentSnapshot>(
-      future: _getUserDataFromFirestore(),
+      future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
       builder: (context, snapshot) {
-        String createdDate = 'Memuat...';
+        String createdDate = 'Tidak tersedia';
         String status = 'Aktif';
         
-        if (snapshot.hasError) {
-          createdDate = 'Gagal memuat';
-        } else if (snapshot.hasData && snapshot.data!.exists) {
+        if (snapshot.hasData && snapshot.data!.exists) {
           final data = snapshot.data!.data() as Map<String, dynamic>?;
           if (data != null && data.containsKey('createdAt')) {
             final createdAt = data['createdAt'] as Timestamp?;
@@ -322,7 +325,6 @@ class ProfilePage extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   _buildInfoRow('Terdaftar sejak', createdDate),
-                  const SizedBox(height: 8),
                   _buildInfoRow('Status', status),
                 ],
               ),
@@ -331,17 +333,6 @@ class ProfilePage extends StatelessWidget {
         );
       },
     );
-  }
-
-  Future<DocumentSnapshot> _getUserDataFromFirestore() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      return await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-    }
-    throw Exception('User not logged in');
   }
 
   String _getMonthName(int month) {
@@ -393,7 +384,6 @@ class ProfilePage extends StatelessWidget {
 
     if (source == null) return;
 
-    // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -415,20 +405,12 @@ class ProfilePage extends StatelessWidget {
         return;
       }
 
-      if (!context.mounted) {
-        if (context.mounted) Navigator.pop(context);
-        return;
-      }
-
       final url = await storageService.uploadProfilePhoto(imageFile);
 
-      if (context.mounted) Navigator.pop(context); // Close loading
+      if (context.mounted) Navigator.pop(context);
 
       if (url != null) {
-        // Update URL di provider
         await userProvider.updateProfileImage(url);
-        
-        // Clear cache untuk gambar ini
         await CachedNetworkImage.evictFromCache(url);
         
         if (!context.mounted) return;
@@ -439,7 +421,6 @@ class ProfilePage extends StatelessWidget {
           ),
         );
         
-        // Refresh user data
         await userProvider.fetchUserData();
       } else {
         if (!context.mounted) return;
@@ -503,6 +484,9 @@ class ProfilePage extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.grey.shade700,
+            ),
             child: const Text('Batal'),
           ),
           ElevatedButton(
@@ -527,6 +511,7 @@ class ProfilePage extends StatelessWidget {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1565C0),
+              foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -620,63 +605,89 @@ class ProfilePage extends StatelessWidget {
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Konfirmasi Logout'),
-        content: const Text('Apakah Anda yakin ingin keluar?'),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(Icons.logout, color: Colors.red.shade600, size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Konfirmasi Logout',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Apakah Anda yakin ingin keluar?',
+          style: TextStyle(fontSize: 15),
+        ),
         actions: [
-          Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        side: BorderSide(color: Colors.grey.shade300),
-                      ),
-                    ),
-                    child: const Text('Batal'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      Navigator.pop(context);
-                      userProvider.reset();
-                      cvProvider.resetAll();
-                      await FirebaseAuth.instance.signOut();
-                      
-                      // Clear cache gambar saat logout
-                      await CachedNetworkImage.evictFromCache('*');
-                      
-                      if (!context.mounted) return;
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (_) => const LandingPage()),
-                        (route) => false,
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: const Text('Logout'),
-                  ),
-                ),
-              ],
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: BorderSide(color: Colors.grey.shade300),
+              ),
+            ),
+            child: Text(
+              'Batal',
+              style: TextStyle(
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
+          const SizedBox(width: 12),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              
+              try {
+                await FirebaseAuth.instance.signOut();
+                userProvider.reset();
+                cvProvider.resetAll();
+                await CachedNetworkImage.evictFromCache('*');
+                
+                if (!context.mounted) return;
+                
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LandingPage()),
+                  (route) => false,
+                );
+              } catch (e) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error: ${e.toString()}'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text('Logout'),
+          ),
         ],
-        actionsPadding: const EdgeInsets.all(16),
       ),
     );
   }

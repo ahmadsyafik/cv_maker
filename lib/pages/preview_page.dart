@@ -73,6 +73,171 @@ class _PreviewPageState extends State<PreviewPage> {
     }
   }
 
+  void _showTemplateSelector() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, // Penting: biar bisa full height
+      useSafeArea: true, // Menghindari notched area
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Consumer<CVProvider>(
+          builder: (context, cvProvider, child) {
+            return DraggableScrollableSheet(
+              initialChildSize: 0.5, // Mulai dari 50% layar
+              minChildSize: 0.4, // Minimal 40%
+              maxChildSize: 0.9, // Maksimal 90%
+              expand: false,
+              builder: (context, scrollController) {
+                return Container(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'Pilih Template CV',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Pilih desain CV yang kamu suka',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Expanded(
+                        child: ListView(
+                          controller: scrollController,
+                          shrinkWrap: true,
+                          children: [
+                            _buildBottomSheetTemplateItem(
+                              context: context,
+                              template: CVTemplate.ats,
+                              label: 'ATS Friendly',
+                              icon: Icons.description_outlined,
+                              description: 'Template sederhana, mudah dibaca ATS',
+                              isSelected: cvProvider.selectedTemplate == CVTemplate.ats,
+                            ),
+                            const SizedBox(height: 12),
+                            _buildBottomSheetTemplateItem(
+                              context: context,
+                              template: CVTemplate.creative,
+                              label: 'Creative',
+                              icon: Icons.palette_outlined,
+                              description: 'Template dengan desain kreatif dan warna',
+                              isSelected: cvProvider.selectedTemplate == CVTemplate.creative,
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildBottomSheetTemplateItem({
+    required BuildContext context,
+    required CVTemplate template,
+    required String label,
+    required IconData icon,
+    required String description,
+    required bool isSelected,
+  }) {
+    return GestureDetector(
+      onTap: () async {
+        Navigator.pop(context);
+        context.read<CVProvider>().setTemplate(template);
+        setState(() {
+          _currentTemplate = null;
+          _pdfBytes = null;
+          _isLoading = true;
+        });
+        await _generatePreview();
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF1565C0).withValues(alpha: 0.1) : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: isSelected 
+              ? Border.all(color: const Color(0xFF1565C0), width: 1.5) 
+              : Border.all(color: Colors.grey.shade200),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFF1565C0) : Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                icon,
+                color: isSelected ? Colors.white : Colors.grey.shade600,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                      color: isSelected ? const Color(0xFF1565C0) : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              const Icon(
+                Icons.check_circle,
+                color: Color(0xFF1565C0),
+                size: 24,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -86,12 +251,10 @@ class _PreviewPageState extends State<PreviewPage> {
         foregroundColor: Colors.white,
         surfaceTintColor: Colors.white,
         centerTitle: true,
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-            tooltip: 'Pilih Template',
-          ),
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: _showTemplateSelector,
+          tooltip: 'Pilih Template',
         ),
         actions: [
           IconButton(
@@ -100,153 +263,22 @@ class _PreviewPageState extends State<PreviewPage> {
               setState(() {
                 _currentTemplate = null;
                 _pdfBytes = null;
-                _generatePreview();
+                _isLoading = true;
               });
+              _generatePreview();
             },
             tooltip: 'Refresh',
           ),
         ],
       ),
-      drawer: _buildDrawer(),
       body: _buildMainContent(),
-    );
-  }
-
-  Widget _buildDrawer() {
-    return Consumer<CVProvider>(
-      builder: (context, cvProvider, child) {
-        return Drawer(
-          child: SafeArea(
-            child: Column(
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: const BoxDecoration(
-                    color: Colors.blue,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(
-                        Icons.picture_as_pdf,
-                        size: 40,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Pilih Template CV',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Pilih desain CV yang kamu suka',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.7),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _buildDrawerTemplateItem(
-                  context: context,
-                  template: CVTemplate.ats,
-                  label: 'ATS Friendly',
-                  icon: Icons.description_outlined,
-                  description: 'Template sederhana, mudah dibaca ATS',
-                  isSelected: cvProvider.selectedTemplate == CVTemplate.ats,
-                ),
-                const Divider(height: 8),
-                _buildDrawerTemplateItem(
-                  context: context,
-                  template: CVTemplate.creative,
-                  label: 'Creative',
-                  icon: Icons.palette_outlined,
-                  description: 'Template dengan desain kreatif dan warna',
-                  isSelected: cvProvider.selectedTemplate == CVTemplate.creative,
-                ),
-                const Spacer(),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    'CV Maker v1.0',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.grey.shade400,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildDrawerTemplateItem({
-    required BuildContext context,
-    required CVTemplate template,
-    required String label,
-    required IconData icon,
-    required String description,
-    required bool isSelected,
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: isSelected ? Colors.blue.withValues(alpha: 0.1) : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        border: isSelected ? Border.all(color: Colors.blue, width: 1.5) : null,
-      ),
-      child: ListTile(
-        leading: Icon(
-          icon,
-          color: isSelected ? Colors.blue : Colors.grey.shade600,
-          size: 28,
-        ),
-        title: Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            color: isSelected ? Colors.blue : Colors.black87,
-          ),
-        ),
-        subtitle: Text(
-          description,
-          style: TextStyle(
-            fontSize: 11,
-            color: Colors.grey.shade600,
-          ),
-        ),
-        trailing: isSelected
-            ? const Icon(Icons.check_circle, color: Colors.blue, size: 20)
-            : null,
-        onTap: () async {
-          Navigator.pop(context);
-          context.read<CVProvider>().setTemplate(template);
-          setState(() {
-            _currentTemplate = null;
-            _pdfBytes = null;
-            _isLoading = true;
-          });
-          await _generatePreview();
-        },
-      ),
     );
   }
 
   Widget _buildMainContent() {
     if (_isLoading) {
       return Container(
-        color: Colors.grey.shade200, // Background loading abu-abu
+        color: Colors.grey.shade200,
         child: const Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -282,12 +314,16 @@ class _PreviewPageState extends State<PreviewPage> {
                   setState(() {
                     _currentTemplate = null;
                     _pdfBytes = null;
-                    _generatePreview();
+                    _isLoading = true;
                   });
+                  _generatePreview();
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
+                  backgroundColor: const Color(0xFF1565C0),
                   foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
                 child: const Text('Coba Lagi'),
               ),
@@ -319,7 +355,7 @@ class _PreviewPageState extends State<PreviewPage> {
       canDebug: false,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       loadingWidget: Container(
-        color: Colors.grey.shade200, // Loading widget juga abu-abu
+        color: Colors.grey.shade200,
         child: const Center(
           child: CircularProgressIndicator(
             strokeWidth: 2,
@@ -349,12 +385,16 @@ class _PreviewPageState extends State<PreviewPage> {
                   setState(() {
                     _currentTemplate = null;
                     _pdfBytes = null;
-                    _generatePreview();
+                    _isLoading = true;
                   });
+                  _generatePreview();
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
+                  backgroundColor: const Color(0xFF1565C0),
                   foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
                 child: const Text('Coba Lagi'),
               ),
