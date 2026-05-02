@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+// ✅ HAPUS import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:cv_maker/pages/auth/login_page.dart';
 import 'package:cv_maker/pages/auth/register_page.dart';
@@ -11,37 +11,9 @@ class LandingPage extends StatefulWidget {
   State<LandingPage> createState() => _LandingPageState();
 }
 
-class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _setFullscreen();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _setFullscreen();
-    }
-  }
-
-  void _setFullscreen() {
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
+class _LandingPageState extends State<LandingPage> {
+  // ✅ HAPUS "with WidgetsBindingObserver"
+  // ✅ HAPUS initState, didChangeAppLifecycleState, _setFullscreen, dispose
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +60,7 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const Text(
-                            'Selamat Datang Kembali!',
+                            'Selamat Datang!',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 25,
@@ -98,7 +70,6 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
                             ),
                           ),
                           const SizedBox(height: 14),
-                          // Baris 1 — bold
                           const Text(
                             'Buat CV profesional Anda dalam hitungan menit',
                             textAlign: TextAlign.center,
@@ -110,7 +81,6 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          // Baris 2 — normal, sedikit lebih redup
                           Text(
                             'Isi detail Anda dan buat CV Anda secara instan.',
                             textAlign: TextAlign.center,
@@ -133,7 +103,7 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Tombol DAFTAR — pojok kanan atas
+                      // Tombol DAFTAR
                       Expanded(
                         child: GestureDetector(
                           onTap: () => Navigator.push(
@@ -166,7 +136,7 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
 
                       const SizedBox(width: 16),
 
-                      // Tombol MASUK — pojok kiri atas
+                      // Tombol MASUK
                       Expanded(
                         child: GestureDetector(
                           onTap: () => Navigator.push(
@@ -179,7 +149,7 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
                             alignment: Alignment.topCenter,
                             padding: const EdgeInsets.only(top: 38),
                             decoration: BoxDecoration(
-                               color: Colors.white.withValues(alpha: 0.5),
+                              color: Colors.white.withValues(alpha: 0.5),
                               borderRadius: const BorderRadius.only(
                                 topLeft: Radius.circular(50),
                               ),

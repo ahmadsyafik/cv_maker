@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -18,18 +19,27 @@ import 'pages/auth/landing_page.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ Fix paling aman untuk duplicate Firebase
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.light,
+    ),
+  );
+
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
   } catch (_) {
-    // Sudah di-initialize → abaikan
+    // Sudah di-initialize
   }
 
   runApp(
     DevicePreview(
-      enabled: false,
+      enabled: true,
       builder: (context) => const MyApp(),
     ),
   );
@@ -46,7 +56,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CVProvider()),
       ],
       child: MaterialApp(
-        title: 'CV Builder Mahasiswa',
+        title: 'CV Maker',
         debugShowCheckedModeBanner: false,
         locale: DevicePreview.locale(context),
         builder: DevicePreview.appBuilder,
