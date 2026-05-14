@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Validasi fungsi untuk tahun (Task #1)
+    function isValidYear(year) {
+      return year is string 
+        && year.size() == 4
+        && year.matches('^(19|20)[0-9]{2}$');
+    }
+    
+    // Validasi fungsi untuk pendidikan
+    function isValidEducation(edu) {
+      return edu != null && edu is map
+        && edu.keys().hasAll(['id', 'university', 'major', 'startYear', 'endYear'])
+        && edu['university'] is string && edu['university'].size() > 0
+        && edu['major'] is string && edu['major'].size() > 0
+        && isValidYear(edu['startYear'])
+        && isValidYear(edu['endYear']);
+    }
+    
+    // Validasi fungsi untuk pengalaman
+    function isValidExperience(exp) {
+      return exp != null && exp is map
+        && exp.keys().hasAll(['id', 'organization', 'position', 'startYear', 'endYear', 'description'])
+        && exp['organization'] is string && exp['organization'].size() > 0
+        && exp['position'] is string && exp['position'].size() > 0
+        && isValidYear(exp['startYear'])
+        && isValidYear(exp['endYear']);
+    }
+    
+    // Validasi fungsi untuk skill
+    function isValidSkill(skill) {
+      return skill != null && skill is map
+        && skill.keys().hasAll(['id', 'name'])
+        && skill['name'] is string && skill['name'].size() > 0;
+    }
+    
+    // Validasi utama untuk dokumen user
+    function isValidCVData(data) {
+      // Validasi field tahun di data diri (opsional)
+      let isValid = true;
+      if ('tahunDiri' in data) {
+        isValid = isValid && isValidYear(data.tahunDiri);
+      }
+      return isValid;
+    }
+    
+    // RULES UTAMA
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      allow write: if request.auth != null 
+        && request.auth.uid == userId
+        && isValidCVData(request.resource.data);
+      
+      // Validasi spesifik untuk array pendidikan (Task #2 - unlimited via array)
+      allow update: if request.auth != null 
+        && request.auth.uid == userId
+        && (request.resource.data.pendidikan is list 
+            ? request.resource.data.pendidikan.all(isValidEducation)
+            : true)
+        && (request.resource.data.pengalaman is list 
+            ? request.resource.data.pengalaman.all(isValidExperience)
+            : true)
+        && (request.resource.data.skills is list 
+            ? request.resource.data.skills.all(isValidSkill)
+            : true);
+    }
+  }
+}

@@ -20,12 +20,14 @@ class CVProvider extends ChangeNotifier {
   CVTemplate _selectedTemplate = CVTemplate.ats;
   String _summary = '';
   bool _isLoading = false;
+  bool _isSaving = false;
 
-  final List<Education> _educations = [];
-  final List<Experience> _experiences = [];
-  final List<Skill> _skills = [];
-  final List<Achievement> _achievements = [];
-  final List<Publication> _publications = [];
+  // Gunakan List biasa (bukan final) agar bisa di-reassign
+  List<Education> _educations = [];
+  List<Experience> _experiences = [];
+  List<Skill> _skills = [];
+  List<Achievement> _achievements = [];
+  List<Publication> _publications = [];
 
   // Getters
   String get fullName => _fullName;
@@ -37,6 +39,7 @@ class CVProvider extends ChangeNotifier {
   String get fotoCV => _fotoCV;
   String get summary => _summary;
   bool get isLoading => _isLoading;
+  bool get isSaving => _isSaving;
   CVTemplate get selectedTemplate => _selectedTemplate;
   List<Education> get educations => List.unmodifiable(_educations);
   List<Experience> get experiences => List.unmodifiable(_experiences);
@@ -50,7 +53,7 @@ class CVProvider extends ChangeNotifier {
       ? FirebaseFirestore.instance.collection('users').doc(_uid)
       : null;
 
-  // Memuat data dari Firestore
+  // ==================== LOAD DATA FROM FIRESTORE ====================
   Future<void> loadFromFirestore() async {
     if (_doc == null) return;
     _isLoading = true;
@@ -73,63 +76,63 @@ class CVProvider extends ChangeNotifier {
       _linkedin = cv['linkedin'] ?? '';
       _github = cv['github'] ?? '';
       _summary = cv['summary'] ?? '';
-      
-      // Mengambil foto khusus CV dari field profileImage di dalam cvData
-      _fotoCV = cv['profileImage'] ?? ''; 
+      _fotoCV = cv['profileImage'] ?? '';
       
       final templateStr = cv['template'] ?? 'ats';
       _selectedTemplate = CVTemplate.values.firstWhere(
-            (e) => e.name == templateStr,
+        (e) => e.name == templateStr,
         orElse: () => CVTemplate.ats,
       );
 
-      _educations.clear();
+      // Load Pendidikan (Task #2 - unlimited via array)
       final eduList = cv['educations'] as List<dynamic>? ?? [];
-      for (final e in eduList) {
-        _educations.add(Education.fromJson(Map<String, dynamic>.from(e)));
-      }
+      _educations = eduList
+          .map((e) => Education.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
 
-      _experiences.clear();
+      // Load Pengalaman (Task #3)
       final expList = cv['experiences'] as List<dynamic>? ?? [];
-      for (final e in expList) {
-        _experiences.add(Experience.fromJson(Map<String, dynamic>.from(e)));
-      }
+      _experiences = expList
+          .map((e) => Experience.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
 
-      _skills.clear();
+      // Load Skills
       final skillList = cv['skills'] as List<dynamic>? ?? [];
-      for (final e in skillList) {
-        _skills.add(Skill.fromJson(Map<String, dynamic>.from(e)));
-      }
+      _skills = skillList
+          .map((e) => Skill.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
 
-      _achievements.clear();
+      // Load Achievements
       final achList = cv['achievements'] as List<dynamic>? ?? [];
-      for (final e in achList) {
-        _achievements.add(Achievement.fromJson(Map<String, dynamic>.from(e)));
-      }
+      _achievements = achList
+          .map((e) => Achievement.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
 
-      _publications.clear();
+      // Load Publications
       final pubList = cv['publications'] as List<dynamic>? ?? [];
-      for (final e in pubList) {
-        _publications.add(Publication.fromJson(Map<String, dynamic>.from(e)));
-      }
+      _publications = pubList
+          .map((e) => Publication.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+          
     } catch (e) {
       debugPrint('Load error: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-
-    _isLoading = false;
-    notifyListeners();
   }
 
-  // Menyimpan data ke Firestore
+  // ==================== SAVE TO FIRESTORE ====================
   Future<void> _saveToFirestore() async {
     if (_doc == null) return;
+    if (_isSaving) return; // Prevent multiple simultaneous saves
+    
+    _isSaving = true;
+    
     try {
       await _doc!.set({
-        // Data utama user (biarkan tetap sinkron)
         'fullName': _fullName,
         'email': _email,
-        
-        // Data detail CV
         'cvData': {
           'fullName': _fullName,
           'email': _email,
@@ -138,8 +141,9 @@ class CVProvider extends ChangeNotifier {
           'linkedin': _linkedin,
           'github': _github,
           'summary': _summary,
-          'profileImage': _fotoCV, // Menyimpan URL foto CV
+          'profileImage': _fotoCV,
           'template': _selectedTemplate.name,
+          // SIMPAN SEBAGAI ARRAY (Task #2 - unlimited)
           'educations': _educations.map((e) => e.toJson()).toList(),
           'experiences': _experiences.map((e) => e.toJson()).toList(),
           'skills': _skills.map((e) => e.toJson()).toList(),
@@ -147,12 +151,16 @@ class CVProvider extends ChangeNotifier {
           'publications': _publications.map((e) => e.toJson()).toList(),
         }
       }, SetOptions(merge: true));
+      
+      debugPrint('✅ CV saved to Firestore');
     } catch (e) {
       debugPrint('Save error: $e');
+    } finally {
+      _isSaving = false;
     }
   }
 
-  // Fungsi khusus untuk update foto dari Builder Page
+  // ==================== PERSONAL DATA METHODS ====================
   void updateCVPhoto(String imageUrl) {
     _fotoCV = imageUrl; 
     notifyListeners();
@@ -191,95 +199,182 @@ class CVProvider extends ChangeNotifier {
     _saveToFirestore();
   }
 
-  // ── Education, Experience, Skill Methods ──────────────────────────────────
+  // ==================== EDUCATION METHODS (Task #2 - Unlimited) ====================
+  // Pendidikan sudah menggunakan ID dari model, disimpan sebagai ARRAY di Firestore
   
   void addEducation(Education education) {
-    _educations.add(education);
+    // Pastikan education memiliki ID (gunakan Education.create() di UI)
+    _educations = [..._educations, education];
     notifyListeners();
     _saveToFirestore();
   }
 
   void removeEducation(int index) {
-    _educations.removeAt(index);
-    notifyListeners();
-    _saveToFirestore();
+    if (index >= 0 && index < _educations.length) {
+      _educations = [..._educations]..removeAt(index);
+      notifyListeners();
+      _saveToFirestore();
+    }
   }
 
   void updateEducation(int index, Education education) {
-    _educations[index] = education;
+    if (index >= 0 && index < _educations.length) {
+      // Pertahankan ID asli jika education baru tidak memiliki ID
+      final updatedEducation = education.id.isNotEmpty 
+          ? education 
+          : _educations[index].copyWith(
+              university: education.university,
+              major: education.major,
+              startYear: education.startYear,
+              endYear: education.endYear,
+              gpa: education.gpa,
+            );
+      _educations = [..._educations];
+      _educations[index] = updatedEducation;
+      notifyListeners();
+      _saveToFirestore();
+    }
+  }
+  
+  // Method untuk replace seluruh list pendidikan (saat load dari Firebase)
+  void setAllEducations(List<Education> educations) {
+    _educations = educations;
     notifyListeners();
-    _saveToFirestore();
   }
 
+  // ==================== EXPERIENCE METHODS ====================
   void addExperience(Experience experience) {
-    _experiences.add(experience);
+    _experiences = [..._experiences, experience];
     notifyListeners();
     _saveToFirestore();
   }
 
   void removeExperience(int index) {
-    _experiences.removeAt(index);
-    notifyListeners();
-    _saveToFirestore();
+    if (index >= 0 && index < _experiences.length) {
+      _experiences = [..._experiences]..removeAt(index);
+      notifyListeners();
+      _saveToFirestore();
+    }
   }
 
   void updateExperience(int index, Experience experience) {
-    _experiences[index] = experience;
+    if (index >= 0 && index < _experiences.length) {
+      final updatedExp = experience.id.isNotEmpty 
+          ? experience 
+          : _experiences[index].copyWith(
+              organization: experience.organization,
+              position: experience.position,
+              startYear: experience.startYear,
+              endYear: experience.endYear,
+              description: experience.description,
+            );
+      _experiences = [..._experiences];
+      _experiences[index] = updatedExp;
+      notifyListeners();
+      _saveToFirestore();
+    }
+  }
+  
+  void setAllExperiences(List<Experience> experiences) {
+    _experiences = experiences;
     notifyListeners();
-    _saveToFirestore();
   }
 
+  // ==================== SKILL METHODS ====================
   void addSkill(Skill skill) {
-    _skills.add(skill);
+    _skills = [..._skills, skill];
     notifyListeners();
     _saveToFirestore();
   }
 
   void removeSkill(int index) {
-    _skills.removeAt(index);
+    if (index >= 0 && index < _skills.length) {
+      _skills = [..._skills]..removeAt(index);
+      notifyListeners();
+      _saveToFirestore();
+    }
+  }
+  
+  void setAllSkills(List<Skill> skills) {
+    _skills = skills;
     notifyListeners();
-    _saveToFirestore();
   }
 
-  // ── Achievement Methods ──────────────────────────────────────────────────
+  // ==================== ACHIEVEMENT METHODS ====================
   void addAchievement(Achievement achievement) {
-    _achievements.add(achievement);
+    _achievements = [..._achievements, achievement];
     notifyListeners();
     _saveToFirestore();
   }
 
   void removeAchievement(int index) {
-    _achievements.removeAt(index);
-    notifyListeners();
-    _saveToFirestore();
+    if (index >= 0 && index < _achievements.length) {
+      _achievements = [..._achievements]..removeAt(index);
+      notifyListeners();
+      _saveToFirestore();
+    }
   }
 
   void updateAchievement(int index, Achievement achievement) {
-    _achievements[index] = achievement;
+    if (index >= 0 && index < _achievements.length) {
+      final updatedAch = achievement.id.isNotEmpty 
+          ? achievement 
+          : Achievement(
+              id: _achievements[index].id,
+              title: achievement.title,
+              description: achievement.description,
+            );
+      _achievements = [..._achievements];
+      _achievements[index] = updatedAch;
+      notifyListeners();
+      _saveToFirestore();
+    }
+  }
+  
+  void setAllAchievements(List<Achievement> achievements) {
+    _achievements = achievements;
     notifyListeners();
-    _saveToFirestore();
   }
 
-  // ── Publication Methods ──────────────────────────────────────────────────
+  // ==================== PUBLICATION METHODS ====================
   void addPublication(Publication publication) {
-    _publications.add(publication);
+    _publications = [..._publications, publication];
     notifyListeners();
     _saveToFirestore();
   }
 
   void removePublication(int index) {
-    _publications.removeAt(index);
-    notifyListeners();
-    _saveToFirestore();
+    if (index >= 0 && index < _publications.length) {
+      _publications = [..._publications]..removeAt(index);
+      notifyListeners();
+      _saveToFirestore();
+    }
   }
 
   void updatePublication(int index, Publication publication) {
-    _publications[index] = publication;
+    if (index >= 0 && index < _publications.length) {
+      final updatedPub = publication.id.isNotEmpty 
+          ? publication 
+          : Publication(
+              id: _publications[index].id,
+              title: publication.title,
+              journal: publication.journal,
+              year: publication.year,
+              url: publication.url,
+            );
+      _publications = [..._publications];
+      _publications[index] = updatedPub;
+      notifyListeners();
+      _saveToFirestore();
+    }
+  }
+  
+  void setAllPublications(List<Publication> publications) {
+    _publications = publications;
     notifyListeners();
-    _saveToFirestore();
   }
 
-  // Menghitung progress pengisian CV
+  // ==================== PROGRESS & RESET ====================
   double get cvProgress {
     int completedItems = 0;
     const int totalItems = 4;
@@ -301,7 +396,6 @@ class CVProvider extends ChangeNotifier {
     return completedItems / totalItems;
   }
 
-  // Reset semua data CV
   void resetAll() {
     _fullName = '';
     _email = '';
@@ -309,14 +403,20 @@ class CVProvider extends ChangeNotifier {
     _address = '';
     _linkedin = '';
     _github = '';
-    _fotoCV = ''; // Sudah diperbaiki dari _profileImage
+    _fotoCV = '';
     _summary = '';
     _selectedTemplate = CVTemplate.ats;
-    _educations.clear();
-    _experiences.clear();
-    _skills.clear();
-    _achievements.clear();
-    _publications.clear();
+    _educations = [];
+    _experiences = [];
+    _skills = [];
+    _achievements = [];
+    _publications = [];
     notifyListeners();
+    _saveToFirestore();
+  }
+  
+  // Clear all data (untuk logout)
+  void clearAllData() {
+    resetAll();
   }
 }

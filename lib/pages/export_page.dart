@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:open_file/open_file.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:device_info_plus/device_info_plus.dart'; 
+import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import '../state/cv_provider.dart';
@@ -19,62 +16,6 @@ class ExportPage extends StatefulWidget {
 
 class _ExportPageState extends State<ExportPage> {
   bool _isGenerating = false;
-  File? _savedFile;
-
-  // Fungsi baru: Request izin berdasarkan versi Android
-  Future<bool> _requestStoragePermission() async {
-    if (!Platform.isAndroid) return true;
-    
-    final androidInfo = await DeviceInfoPlugin().androidInfo;
-    final sdkInt = androidInfo.version.sdkInt;
-    
-    Permission targetPermission;
-    
-    if (sdkInt >= 33) { // Android 13+ (API 33+)
-      // Untuk Android 13+, kita minta izin notifikasi saja
-      // Izin storage tidak diperlukan karena pakai file_saver
-      targetPermission = Permission.notification;
-    } else if (sdkInt >= 29) { // Android 10-12 (API 29-32)
-      // Di Android 10-12, kita tidak perlu izin storage untuk menyimpan ke Downloads
-      // Tapi untuk kompatibilitas, tetap cek izin notifikasi
-      targetPermission = Permission.notification;
-    } else { // Android 9 ke bawah (API 28 ke bawah)
-      targetPermission = Permission.storage;
-    }
-    
-    // Minta izin
-    final status = await targetPermission.request();
-    
-    if (status.isGranted) {
-      return true;
-    } else if (status.isPermanentlyDenied) {
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Izin Diperlukan'),
-            content: Text('Mohon berikan izin ${targetPermission == Permission.storage ? 'storage' : 'notifikasi'} di pengaturan'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Batal'),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  openAppSettings();
-                },
-                child: const Text('Buka Pengaturan'),
-              ),
-            ],
-          ),
-        );
-      }
-      return false;
-    }
-    
-    return false;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -87,20 +28,8 @@ class _ExportPageState extends State<ExportPage> {
         ),
         backgroundColor: const Color(0xFF1565C0),
         foregroundColor: Colors.white,
-        actions: [
-          if (_savedFile != null)
-            IconButton(
-              icon: const Icon(Icons.folder_open),
-              onPressed: () => _openPDF(),
-              tooltip: 'Buka PDF',
-            ),
-          if (_savedFile != null)
-            IconButton(
-              icon: const Icon(Icons.share),
-              onPressed: () => _sharePDF(),
-              tooltip: 'Share PDF',
-            ),
-        ],
+        centerTitle: true,
+        elevation: 0,
       ),
       body: Consumer<CVProvider>(
         builder: (context, cvProvider, child) {
@@ -110,7 +39,7 @@ class _ExportPageState extends State<ExportPage> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                // Card Progress (sama seperti sebelumnya)
+                // Card Progress
                 Card(
                   elevation: 2,
                   shape: RoundedRectangleBorder(
@@ -178,7 +107,7 @@ class _ExportPageState extends State<ExportPage> {
 
                 const SizedBox(height: 20),
 
-                // Card Pilih Template (sama seperti sebelumnya)
+                // Card Template
                 Card(
                   elevation: 2,
                   shape: RoundedRectangleBorder(
@@ -235,13 +164,13 @@ class _ExportPageState extends State<ExportPage> {
 
                         const SizedBox(height: 24),
 
-                        // Tombol Generate & Buka Langsung
+                        // Tombol Simpan CV
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
                             onPressed: _isGenerating || !isDataComplete
                                 ? null
-                                : () => _generateAndOpenPDF(),
+                                : () => _saveCV(cvProvider),
                             style: ElevatedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               backgroundColor: isDataComplete ? const Color(0xFF1565C0) : Colors.grey,
@@ -256,75 +185,21 @@ class _ExportPageState extends State<ExportPage> {
                                       strokeWidth: 2,
                                     ),
                                   )
-                                : const Icon(Icons.picture_as_pdf),
+                                : const Icon(Icons.save),
                             label: Text(
                               _isGenerating
                                   ? 'Membuat PDF...'
                                   : !isDataComplete
                                       ? 'Lengkapi Data Dulu'
-                                      : 'Buat & Buka CV',
+                                      : 'Simpan CV',
                               style: const TextStyle(fontSize: 16),
                             ),
                           ),
                         ),
-
-                        const SizedBox(height: 12),
-
-                        // Tombol Share
-                        if (_savedFile != null)
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: _sharePDF,
-                              icon: const Icon(Icons.share),
-                              label: const Text('Bagikan CV'),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                            ),
-                          ),
                       ],
                     ),
                   ),
                 ),
-
-                if (_savedFile != null) ...[
-                  const SizedBox(height: 20),
-                  Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    color: Colors.green.shade50,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          const Icon(Icons.check_circle, size: 48, color: Colors.green),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'CV Berhasil Dibuat!',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Colors.green,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          ElevatedButton.icon(
-                            onPressed: _openPDF,
-                            icon: const Icon(Icons.visibility),
-                            label: const Text('Buka CV Sekarang'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
               ],
             ),
           );
@@ -344,9 +219,6 @@ class _ExportPageState extends State<ExportPage> {
     return InkWell(
       onTap: () {
         context.read<CVProvider>().setTemplate(template);
-        setState(() {
-          _savedFile = null;
-        });
       },
       child: Container(
         padding: const EdgeInsets.all(12),
@@ -388,208 +260,76 @@ class _ExportPageState extends State<ExportPage> {
     );
   }
 
-  // Fungsi utama: Generate dan langsung buka PDF (DIREFACTOR)
-  Future<void> _generateAndOpenPDF() async {
-  // Simpan dependency sebelum async gap
-  final scaffoldMessenger = ScaffoldMessenger.of(context);
-  final cvProvider = context.read<CVProvider>();
-
-  // Request permission
-  final hasPermission = await _requestStoragePermission();
-
-  // Cegah lanjut jika widget dispose / izin ditolak
-  if (!mounted || !hasPermission) return;
-
-  // Aktifkan loading
-  setState(() {
-    _isGenerating = true;
-  });
-
-  try {
-    // Validasi kelengkapan CV
-    if (cvProvider.cvProgress < 1.0) {
-      throw Exception('Data CV belum lengkap');
-    }
-
-    // Generate PDF bytes
-    final pdfBytes = await PDFService.generatePDFBytes(
-      fullName: cvProvider.fullName,
-      email: cvProvider.email,
-      phone: cvProvider.phone,
-      address: cvProvider.address,
-      linkedin: cvProvider.linkedin,
-      github: cvProvider.github,
-      summary: cvProvider.summary,
-      educations: cvProvider.educations,
-      experiences: cvProvider.experiences,
-      skills: cvProvider.skills,
-      achievements: cvProvider.achievements,
-      publications: cvProvider.publications,
-      template: cvProvider.selectedTemplate,
-      profileImage:
-          cvProvider.fotoCV.isNotEmpty ? cvProvider.fotoCV : null,
-    );
-
-    // Simpan PDF
-    final savedFile = await _savePDFModern(
-      pdfBytes,
-      cvProvider.fullName,
-    );
-
-    // Pastikan widget masih aktif
-    if (!mounted) return;
-
-    // Update state
+  // ==================== FUNGSI SIMPAN CV ====================
+  
+  Future<void> _saveCV(CVProvider cvProvider) async {
     setState(() {
-      _savedFile = savedFile;
-      _isGenerating = false;
+      _isGenerating = true;
     });
 
-    // Buka PDF otomatis
-    await _openPDF();
-
-    // Pastikan widget masih aktif
-    if (!mounted) return;
-
-    // Success snackbar
-    scaffoldMessenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          'CV berhasil dibuat di:\n${savedFile.path}',
-        ),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 3),
-      ),
-    );
-  } catch (e) {
-    // Pastikan widget masih aktif
-    if (!mounted) return;
-
-    // Nonaktifkan loading
-    setState(() {
-      _isGenerating = false;
-    });
-
-    // Error snackbar
-    scaffoldMessenger.showSnackBar(
-      SnackBar(
-        content: Text('Gagal membuat CV: $e'),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
-}
-
-  // New Method: Save PDF compatible with all Android versions
-  Future<File> _savePDFModern(Uint8List pdfBytes, String fullName) async {
-    final fileName = 'CV_${fullName.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.pdf';
-    
-    Directory saveDir;
-    
-    if (Platform.isAndroid) {
-      final androidInfo = await DeviceInfoPlugin().androidInfo;
-      final sdkInt = androidInfo.version.sdkInt;
-      
-      if (sdkInt >= 29) { 
-        // Android 10+ (API 29+)
-        // Simpan di App-specific directory di External Storage
-        // Tidak perlu izin WRITE_EXTERNAL_STORAGE
-        final externalDir = await getExternalStorageDirectory();
-        saveDir = Directory('${externalDir?.path}/CV_Maker');
-        
-        if (!await saveDir.exists()) {
-          await saveDir.create(recursive: true);
-        }
-        
-        // Show Message File Location
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('CV tersimpan di: ${saveDir.path}'),
-              backgroundColor: Colors.blue,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
-      } else {
-        // Android 9 ke bawah
-        // Bisa pakai Downloads folder
-        const downloadsPath = '/storage/emulated/0/Download';
-        saveDir = Directory('$downloadsPath/CV_Maker');
-        
-        if (!await saveDir.exists()) {
-          await saveDir.create(recursive: true);
-        }
-      }
-    } else {
-      // iOS
-      final tempDir = await getTemporaryDirectory();
-      saveDir = Directory('${tempDir.path}/CV_Maker');
-      if (!await saveDir.exists()) {
-        await saveDir.create(recursive: true);
-      }
-    }
-    
-    final file = File('${saveDir.path}/$fileName');
-    await file.writeAsBytes(pdfBytes);
-    
-    return file;
-  }
-
-  /// old method - fallback
-  // Future<File> _savePDF(Uint8List pdfBytes, String fullName) async {
-  //   return await _savePDFModern(pdfBytes, fullName);
-  // }
-
-  // Buka PDF dengan aplikasi default
-  Future<void> _openPDF() async {
-    if (_savedFile == null) return;
-    
     try {
-      final result = await OpenFile.open(_savedFile!.path);
-      
-      if (result.type == ResultType.noAppToOpen) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Tidak ada aplikasi pembaca PDF. Silakan install Adobe Acrobat atau Google PDF Viewer.'),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal membuka PDF: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  // Share PDF
-  Future<void> _sharePDF() async {
-    if (_savedFile == null) return;
-
-    try {
-      final cvProvider = context.read<CVProvider>();
-      await Share.shareXFiles(
-        [XFile(_savedFile!.path)],
-        text: 'CV - ${cvProvider.fullName}',
+      // Generate PDF
+      final pdfBytes = await PDFService.generatePDFBytes(
+        fullName: cvProvider.fullName,
+        email: cvProvider.email,
+        phone: cvProvider.phone,
+        address: cvProvider.address,
+        linkedin: cvProvider.linkedin,
+        github: cvProvider.github,
+        summary: cvProvider.summary,
+        educations: cvProvider.educations,
+        experiences: cvProvider.experiences,
+        skills: cvProvider.skills,
+        achievements: cvProvider.achievements,
+        publications: cvProvider.publications,
+        template: cvProvider.selectedTemplate,
+        profileImage: cvProvider.fotoCV.isNotEmpty ? cvProvider.fotoCV : null,
       );
-    } catch (e) {
-      if (mounted) {
+
+      // Buka file picker untuk pilih lokasi simpan
+      String? outputPath = await FilePicker.saveFile(
+        dialogTitle: 'Simpan CV',
+        fileName: 'CV_${cvProvider.fullName.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.pdf',
+        bytes: pdfBytes,
+      );
+
+      if (!mounted) return;
+
+      if (outputPath != null) {
+        setState(() {
+          _isGenerating = false;
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal share: $e'),
-            backgroundColor: Colors.red,
+          const SnackBar(
+            content: Text('✅ CV berhasil disimpan'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else {
+        setState(() {
+          _isGenerating = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Penyimpanan dibatalkan'),
+            backgroundColor: Colors.orange,
           ),
         );
       }
+
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isGenerating = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Gagal menyimpan CV: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 }

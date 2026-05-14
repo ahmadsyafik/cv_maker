@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -22,14 +24,16 @@ const _cBlueMid    = PdfColor.fromInt(0xFF1976D2);
 const _cBlueLight  = PdfColor.fromInt(0xFFE3F2FD);
 const _cNavy       = PdfColor.fromInt(0xFF1B2B4B);
 const _cNavyAccent = PdfColor.fromInt(0xFF2E6DA4);
-const _cRed        = PdfColor.fromInt(0xFF8B1A1A);
-const _cRedDark    = PdfColor.fromInt(0xFF6B1212);
+const _cRed        = PdfColor.fromInt(0xFFC62828);
+const _cRedDark    = PdfColor.fromInt(0xFF8B0000);
 const _cWhite      = PdfColors.white;
-const _cBlack      = PdfColor.fromInt(0xFF111111);
+const _cBlack      = PdfColor.fromInt(0xFF1A1A1A);
 const _cGrey800    = PdfColor.fromInt(0xFF333333);
 const _cGrey700    = PdfColor.fromInt(0xFF555555);
 const _cGrey600    = PdfColor.fromInt(0xFF777777);
-const _cGrey300    = PdfColor.fromInt(0xFFCCCCCC);
+const _cGrey400    = PdfColor.fromInt(0xFFBDBDBD);
+const _cGrey300    = PdfColor.fromInt(0xFFE0E0E0);
+const _cGrey100    = PdfColor.fromInt(0xFFF5F5F5);
 
 // ─── Font singletons ──────────────────────────────────────────────────────────
 late pw.Font _regular;
@@ -70,6 +74,39 @@ pw.TextStyle _ts({
     letterSpacing: spacing,
     lineSpacing: lineH,
   );
+}
+
+// Helper untuk opacity color
+PdfColor _withOpacity(PdfColor color, double opacity) {
+  return PdfColor(
+    color.red,
+    color.green,
+    color.blue,
+    opacity,
+  );
+}
+
+// Helper untuk mendapatkan emoji dari nama icon
+String _getIconEmoji(String iconName) {
+  final emojiMap = {
+    'house': '🏠',
+    'user': '👤',
+    'briefcase': '💼',
+    'mail': '✉️',
+    'phone': '📞',
+    'map-pin': '📍',
+    'link': '🔗',
+    'code': '💻',
+    'graduation-cap': '🎓',
+    'trophy': '🏆',
+    'star': '⭐',
+    'settings': '⚙️',
+    'book-open': '📖',
+    'heart': '❤️',
+    'calendar': '📅',
+    'globe': '🌐',
+  };
+  return emojiMap[iconName] ?? '•';
 }
 
 // ─── Profile image loader ─────────────────────────────────────────────────────
@@ -171,9 +208,14 @@ class PDFService {
     return file;
   }
 
+  // Helper untuk menampilkan icon
+  static pw.Widget _buildIcon(String iconName, {double size = 10, PdfColor? color}) {
+    return pw.Text(_getIconEmoji(iconName), 
+        style: _ts(size: size, color: color ?? _cBlue));
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
-  //  ATS v1 — Single column clean, foto kiri atas, garis pembatas section
-  //  Referensi: CV Belinda / CV Pius
+  //  ATS v1 — Clean professional with sidebar summary
   // ═══════════════════════════════════════════════════════════════════════════
   static void _buildATS1(
       pw.Document doc, String fullName, String email, String phone,
@@ -184,181 +226,260 @@ class PDFService {
 
     doc.addPage(pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
-      margin: const pw.EdgeInsets.fromLTRB(48, 40, 48, 40),
+      margin: const pw.EdgeInsets.fromLTRB(40, 35, 40, 35),
       build: (ctx) => [
-
-        // ── Header ────────────────────────────────────────────────────────
-        pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-          if (photo != null) ...[
-            pw.Container(
-              width: 88, height: 108,
-              child: pw.Image(photo, fit: pw.BoxFit.cover),
-            ),
-            pw.SizedBox(width: 18),
-          ],
-          pw.Expanded(child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              if (photo != null) pw.SizedBox(height: 8),
-              pw.Text(fullName.toUpperCase(),
-                  style: _ts(size: 22, bold: true, color: _cBlack, spacing: 1.2)),
-              pw.SizedBox(height: 6),
-              pw.Container(height: 1.5, color: _cGrey300),
-              pw.SizedBox(height: 8),
-              if (phone.isNotEmpty || address.isNotEmpty)
-                pw.Text([phone, address].where((s) => s.isNotEmpty).join('     '),
-                    style: _ts(size: 10, color: _cGrey700)),
-              if (email.isNotEmpty) ...[
-                pw.SizedBox(height: 2),
-                pw.Text(email, style: _ts(size: 10, color: _cGrey700)),
-              ],
-              if (linkedin.isNotEmpty || github.isNotEmpty) ...[
-                pw.SizedBox(height: 2),
-                pw.Text([linkedin, github].where((s) => s.isNotEmpty).join('   |   '),
-                    style: _ts(size: 9.5, color: _cBlue)),
-              ],
-            ],
-          )),
-        ]),
-
-        pw.SizedBox(height: 14),
-        pw.Container(height: 2, color: _cBlack),
-        pw.SizedBox(height: 14),
-
-        // ── Summary ───────────────────────────────────────────────────────
-        if (summary.isNotEmpty) ...[
-          _ats1Header('ABOUT ME'),
-          pw.Text(summary, style: _ts(size: 10.5, color: _cGrey800, lineH: 2)),
-          pw.SizedBox(height: 12),
-          pw.Container(height: 1, color: _cGrey300),
-          pw.SizedBox(height: 14),
-        ],
-
-        // ── Experience ────────────────────────────────────────────────────
-        if (exp.isNotEmpty) ...[
-          _ats1Header('ORGANIZATIONAL EXPERIENCE'),
-          ...exp.map((e) => pw.Container(
-            margin: const pw.EdgeInsets.only(bottom: 12),
-            child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-              pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
-                pw.Expanded(child: pw.Text(e.organization,
-                    style: _ts(size: 11, bold: true, color: _cBlack))),
-                pw.Text('${e.startYear} – ${e.endYear}',
-                    style: _ts(size: 9.5, color: _cGrey600)),
-              ]),
-              pw.Text(e.position, style: _ts(size: 10.5, italic: true, color: _cGrey700)),
-              if (e.description.isNotEmpty) ...[
-                pw.SizedBox(height: 3),
-                ...e.description.split('\n').map((line) => line.trim().isEmpty
-                    ? pw.SizedBox(height: 2)
-                    : pw.Padding(
-                        padding: const pw.EdgeInsets.only(left: 8, bottom: 2),
-                        child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                          pw.Text('•  ', style: _ts(size: 10.5)),
-                          pw.Expanded(child: pw.Text(line.trim(),
-                              style: _ts(size: 10.5, color: _cGrey800, lineH: 1.4))),
-                        ]))),
-              ],
-            ]),
-          )),
-          pw.Container(height: 1, color: _cGrey300),
-          pw.SizedBox(height: 14),
-        ],
-
-        // ── Skills ────────────────────────────────────────────────────────
-        if (skills.isNotEmpty) ...[
-          _ats1Header('SKILLS'),
-          pw.Wrap(
-            spacing: 8, runSpacing: 6,
-            children: skills.map((s) => pw.Container(
-              padding: const pw.EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-              decoration: pw.BoxDecoration(
-                border: pw.Border.all(color: _cGrey300, width: 0.8),
-                borderRadius: pw.BorderRadius.circular(3),
-              ),
-              child: pw.Text(s.name, style: _ts(size: 9.5, color: _cGrey800)),
-            )).toList(),
-          ),
-          pw.SizedBox(height: 12),
-          pw.Container(height: 1, color: _cGrey300),
-          pw.SizedBox(height: 14),
-        ],
-
-        // ── Achievements ──────────────────────────────────────────────────
-        if (ach.isNotEmpty) ...[
-          _ats1Header('ACHIEVEMENTS'),
-          ...ach.map((a) => pw.Container(
-            margin: const pw.EdgeInsets.only(bottom: 6),
-            child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-              pw.Text('•  ', style: _ts(size: 10.5)),
-              pw.Expanded(child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text(a.title, style: _ts(size: 10.5, bold: true, color: _cBlack)),
-                  if (a.description.isNotEmpty)
-                    pw.Text(a.description, style: _ts(size: 10, color: _cGrey700)),
-                ],
-              )),
-            ]),
-          )),
-          pw.SizedBox(height: 12),
-          pw.Container(height: 1, color: _cGrey300),
-          pw.SizedBox(height: 14),
-        ],
-
-        // ── Education ─────────────────────────────────────────────────────
-        if (edu.isNotEmpty) ...[
-          _ats1Header('EDUCATION'),
+        // Header dengan garis bawah
+        pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: edu.map((e) => pw.Expanded(
-              child: pw.Padding(
-                padding: const pw.EdgeInsets.only(right: 12),
-                child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                  pw.Text(e.university, style: _ts(size: 10.5, bold: true)),
-                  pw.Text(e.major, style: _ts(size: 10, italic: true, color: _cGrey700)),
-                  pw.Text('${e.startYear} – ${e.endYear}', style: _ts(size: 9.5, color: _cGrey600)),
-                  if (e.gpa != null)
-                    pw.Text('GPA: ${e.gpa}', style: _ts(size: 9.5, color: _cGrey600)),
-                ]),
+            children: [
+              if (photo != null) ...[
+                pw.Container(
+                  width: 85, height: 85,
+                  decoration: pw.BoxDecoration(
+                    shape: pw.BoxShape.circle,
+                    border: pw.Border.all(color: _cBlue, width: 2),
+                  ),
+                  child: pw.ClipOval(child: pw.Image(photo, fit: pw.BoxFit.cover)),
+                ),
+                pw.SizedBox(width: 20),
+              ],
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(fullName,
+                        style: _ts(size: 24, bold: true, color: _cBlueDark)),
+                    pw.SizedBox(height: 4),
+                    pw.Container(width: 50, height: 3, color: _cBlue),
+                    pw.SizedBox(height: 10),
+                    pw.Wrap(
+                      spacing: 15,
+                      runSpacing: 5,
+                      children: [
+                        if (phone.isNotEmpty) _infoChip('phone', phone),
+                        if (email.isNotEmpty) _infoChip('mail', email),
+                        if (address.isNotEmpty) _infoChip('map-pin', address),
+                      ],
+                    ),
+                    if (linkedin.isNotEmpty || github.isNotEmpty) ...[
+                      pw.SizedBox(height: 5),
+                      pw.Wrap(
+                        spacing: 15,
+                        children: [
+                          if (linkedin.isNotEmpty) _infoChip('link', linkedin),
+                          if (github.isNotEmpty) _infoChip('code', github),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            )).toList(),
+            ],
           ),
-          pw.SizedBox(height: 14),
-        ],
+          pw.SizedBox(height: 20),
+          pw.Container(height: 1.5, color: _cBlue),
+          pw.SizedBox(height: 20),
+        ]),
 
-        // ── Publications ──────────────────────────────────────────────────
-        if (pub.isNotEmpty) ...[
-          pw.Container(height: 1, color: _cGrey300),
-          pw.SizedBox(height: 12),
-          _ats1Header('PUBLICATION'),
-          ...pub.map((p) => pw.Container(
-            margin: const pw.EdgeInsets.only(bottom: 8),
-            child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-              pw.Text(p.title, style: _ts(size: 10.5, bold: true)),
-              if (p.journal.isNotEmpty || p.year.isNotEmpty)
-                pw.Text([p.journal, p.year].where((s) => s.isNotEmpty).join(' – '),
-                    style: _ts(size: 9.5, italic: true, color: _cGrey700)),
-              if (p.url.isNotEmpty)
-                pw.Text(p.url, style: _ts(size: 9, color: _cBlue)),
-            ]),
-          )),
-        ],
+        // 2 column layout untuk konten utama
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            // Kolom kiri (35%) - Summary & Skills
+            pw.Expanded(
+              flex: 35,
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  if (summary.isNotEmpty) ...[
+                    _sectionHeader('PROFILE SUMMARY', 'user'),
+                    pw.Text(summary,
+                        style: _ts(size: 10, color: _cGrey800, lineH: 1.5)),
+                    pw.SizedBox(height: 16),
+                  ],
+                  if (skills.isNotEmpty) ...[
+                    _sectionHeader('CORE SKILLS', 'settings'),
+                    ...skills.take(8).map((s) => pw.Padding(
+                      padding: const pw.EdgeInsets.only(bottom: 6),
+                      child: pw.Row(children: [
+                        pw.Container(
+                          width: 4, height: 4,
+                          margin: const pw.EdgeInsets.only(right: 8),
+                          decoration: const pw.BoxDecoration(shape: pw.BoxShape.circle, color: _cBlue),
+                        ),
+                        pw.Expanded(
+                          child: pw.Text(s.name,
+                              style: _ts(size: 10, color: _cGrey700)),
+                        ),
+                      ]),
+                    )).toList(),
+                    pw.SizedBox(height: 16),
+                  ],
+                  if (ach.isNotEmpty) ...[
+                    _sectionHeader('ACHIEVEMENTS', 'trophy'),
+                    ...ach.take(3).map((a) => pw.Container(
+                      margin: const pw.EdgeInsets.only(bottom: 10),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Row(children: [
+                            _buildIcon('trophy', size: 10),
+                            pw.SizedBox(width: 4),
+                            pw.Expanded(
+                              child: pw.Text(a.title,
+                                  style: _ts(size: 10, bold: true, color: _cBlueDark)),
+                            ),
+                          ]),
+                          if (a.description.isNotEmpty)
+                            pw.Padding(
+                              padding: const pw.EdgeInsets.only(left: 14, top: 2),
+                              child: pw.Text(a.description,
+                                  style: _ts(size: 9, color: _cGrey600)),
+                            ),
+                        ],
+                      ),
+                    )).toList(),
+                  ],
+                ],
+              ),
+            ),
+            
+            pw.SizedBox(width: 25),
+            
+            // Kolom kanan (65%) - Experience & Education
+            pw.Expanded(
+              flex: 65,
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  if (exp.isNotEmpty) ...[
+                    _sectionHeader('WORK EXPERIENCE', 'briefcase'),
+                    ...exp.take(3).map((e) => _experienceItem(e)),
+                    pw.SizedBox(height: 16),
+                  ],
+                  if (edu.isNotEmpty) ...[
+                    _sectionHeader('EDUCATION', 'graduation-cap'),
+                    ...edu.take(2).map((e) => _educationItem(e)),
+                    pw.SizedBox(height: 16),
+                  ],
+                  if (pub.isNotEmpty) ...[
+                    _sectionHeader('PUBLICATIONS', 'book-open'),
+                    ...pub.take(2).map((p) => _publicationItem(p)),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ],
     ));
   }
 
-  static pw.Widget _ats1Header(String t) => pw.Column(
-    crossAxisAlignment: pw.CrossAxisAlignment.start,
-    children: [
-      pw.Text(t, style: _ts(size: 12, bold: true, color: _cBlack, spacing: 0.5)),
-      pw.SizedBox(height: 8),
-    ],
-  );
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  Helper Widgets untuk ATS1
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  static pw.Widget _infoChip(String iconName, String text) {
+    return pw.Row(
+      mainAxisSize: pw.MainAxisSize.min,
+      children: [
+        _buildIcon(iconName, size: 8),
+        pw.SizedBox(width: 4),
+        pw.Text(text, style: _ts(size: 9, color: _cGrey700)),
+      ],
+    );
+  }
+
+  static pw.Widget _sectionHeader(String title, String iconName) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Row(
+          children: [
+            _buildIcon(iconName, size: 10),
+            pw.SizedBox(width: 6),
+            pw.Text(title,
+                style: _ts(size: 11, bold: true, color: _cBlueDark, spacing: 0.8)),
+          ],
+        ),
+        pw.SizedBox(height: 6),
+        pw.Container(height: 1.5, width: 40, color: _cBlue),
+        pw.SizedBox(height: 12),
+      ],
+    );
+  }
+
+  static pw.Widget _experienceItem(Experience e) {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 14),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Expanded(
+                child: pw.Text(e.position,
+                    style: _ts(size: 11, bold: true, color: _cBlack)),
+              ),
+              pw.Text('${e.startYear} - ${e.endYear}',
+                  style: _ts(size: 9, color: _cGrey600)),
+            ],
+          ),
+          pw.Text(e.organization,
+              style: _ts(size: 10, italic: true, color: _cBlue)),
+          pw.SizedBox(height: 6),
+          if (e.description.isNotEmpty)
+            pw.Text(e.description,
+                style: _ts(size: 9.5, color: _cGrey700, lineH: 1.4)),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _educationItem(Education e) {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 12),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(e.university,
+              style: _ts(size: 11, bold: true, color: _cBlack)),
+          pw.Text(e.major, style: _ts(size: 10, color: _cGrey700)),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('${e.startYear} - ${e.endYear}',
+                  style: _ts(size: 9, color: _cGrey600)),
+              if (e.gpa != null)
+                pw.Text('GPA: ${e.gpa}',
+                    style: _ts(size: 9, bold: true, color: _cBlue)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _publicationItem(Publication p) {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 10),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(p.title,
+              style: _ts(size: 10.5, bold: true, color: _cBlack)),
+          if (p.journal.isNotEmpty || p.year.isNotEmpty)
+            pw.Text([p.journal, p.year].where((s) => s.isNotEmpty).join(' · '),
+                style: _ts(size: 9.5, italic: true, color: _cGrey600)),
+        ],
+      ),
+    );
+  }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  //  ATS v2 — Dark navy header band, classic two-column contact row
-  //  Referensi: CV Pius Hari Purba
+  //  ATS v2 — Modern two-column with colored sidebar
   // ═══════════════════════════════════════════════════════════════════════════
   static void _buildATS2(
       pw.Document doc, String fullName, String email, String phone,
@@ -369,169 +490,210 @@ class PDFService {
 
     doc.addPage(pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
-      margin: const pw.EdgeInsets.fromLTRB(40, 0, 40, 36),
+      margin: pw.EdgeInsets.zero,
       build: (ctx) => [
-
-        // ── Navy header ───────────────────────────────────────────────────
-        pw.Container(
-          color: _cNavy,
-          padding: const pw.EdgeInsets.fromLTRB(16, 24, 16, 20),
-          child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
-            if (photo != null) ...[
-              pw.Container(
-                width: 80, height: 80,
-                decoration: pw.BoxDecoration(
-                  shape: pw.BoxShape.circle,
-                  border: pw.Border.all(color: _cWhite, width: 2.5),
-                ),
-                child: pw.ClipOval(child: pw.Image(photo, fit: pw.BoxFit.cover)),
-              ),
-              pw.SizedBox(width: 18),
-            ],
-            pw.Expanded(child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(fullName.toUpperCase(),
-                    style: _ts(size: 22, bold: true, color: _cWhite, spacing: 1.5)),
-                pw.SizedBox(height: 5),
-                pw.Container(width: 180, height: 1.5, color: _cNavyAccent),
-                pw.SizedBox(height: 8),
-                pw.Row(children: [
-                  if (phone.isNotEmpty)
-                    pw.Expanded(child: pw.Text(phone, style: _ts(size: 9.5, color: _cWhite))),
-                  if (email.isNotEmpty)
-                    pw.Expanded(child: pw.Text(email, style: _ts(size: 9.5, color: _cWhite))),
-                ]),
-                if (address.isNotEmpty || linkedin.isNotEmpty) ...[
-                  pw.SizedBox(height: 3),
-                  pw.Row(children: [
-                    if (address.isNotEmpty)
-                      pw.Expanded(child: pw.Text(address, style: _ts(size: 9.5, color: _cWhite))),
-                    if (linkedin.isNotEmpty)
-                      pw.Expanded(child: pw.Text(linkedin, style: _ts(size: 9.5, color: _cWhite))),
-                  ]),
-                ],
-              ],
-            )),
-          ]),
-        ),
-
-        pw.SizedBox(height: 18),
-
-        // ── Summary ───────────────────────────────────────────────────────
-        if (summary.isNotEmpty) ...[
-          _ats2Header('ABOUT ME'),
-          pw.Text(summary, style: _ts(size: 10.5, color: _cGrey800, lineH: 1.8)),
-          pw.SizedBox(height: 16),
-        ],
-
-        // ── Experience section heading ─────────────────────────────────────
-        if (exp.isNotEmpty) ...[
-          _ats2Header('EXPERIENCE - WORKSHOP, SKILL, ACHIEVEMENT'),
-          pw.Text('Experiences', style: _ts(size: 10.5, bold: true)),
-          pw.SizedBox(height: 6),
-          ...exp.map((e) => pw.Container(
-            margin: const pw.EdgeInsets.only(bottom: 5),
-            child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-              pw.Text('• ', style: _ts(size: 10.5)),
-              pw.Expanded(child: pw.Text(
-                '${e.position} – ${e.organization} (${e.startYear}–${e.endYear})',
-                style: _ts(size: 10.5, color: _cGrey800),
-              )),
-            ]),
-          )),
-          pw.SizedBox(height: 12),
-        ],
-
-        // ── Skills ────────────────────────────────────────────────────────
-        if (skills.isNotEmpty) ...[
-          pw.Text('Skill', style: _ts(size: 10.5, bold: true)),
-          pw.SizedBox(height: 4),
-          ...List.generate(skills.length, (i) => pw.Text(
-            '${i + 1}.   ${skills[i].name}',
-            style: _ts(size: 10.5, color: _cGrey800),
-          )),
-          pw.SizedBox(height: 16),
-        ],
-
-        // ── Achievements ──────────────────────────────────────────────────
-        if (ach.isNotEmpty) ...[
-          pw.Text('Achievements', style: _ts(size: 10.5, bold: true)),
-          pw.SizedBox(height: 5),
-          ...ach.map((a) => pw.Container(
-            margin: const pw.EdgeInsets.only(bottom: 4),
-            child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-              pw.Text('• ', style: _ts(size: 10.5)),
-              pw.Expanded(child: pw.Column(
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            // Sidebar kiri - warna biru tua
+            pw.Container(
+              width: 140,
+              color: _cNavy,
+              padding: const pw.EdgeInsets.fromLTRB(16, 30, 16, 30),
+              child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text(a.title, style: _ts(size: 10.5, color: _cGrey800)),
-                  if (a.description.isNotEmpty)
-                    pw.Text(a.description, style: _ts(size: 10, color: _cGrey700)),
+                  if (photo != null) ...[
+                    pw.Center(
+                      child: pw.Container(
+                        width: 80, height: 80,
+                        decoration: pw.BoxDecoration(
+                          shape: pw.BoxShape.circle,
+                          border: pw.Border.all(color: _cWhite, width: 2),
+                        ),
+                        child: pw.ClipOval(child: pw.Image(photo, fit: pw.BoxFit.cover)),
+                      ),
+                    ),
+                    pw.SizedBox(height: 15),
+                  ],
+                  pw.Center(
+                    child: pw.Text(fullName.split(' ').first,
+                        textAlign: pw.TextAlign.center,
+                        style: _ts(size: 14, bold: true, color: _cWhite)),
+                  ),
+                  pw.SizedBox(height: 20),
+                  _sidebarSection('CONTACT', [
+                    if (phone.isNotEmpty) 'phone: $phone',
+                    if (email.isNotEmpty) 'mail: $email',
+                    if (address.isNotEmpty) 'map-pin: $address',
+                  ]),
+                  if (skills.isNotEmpty) ...[
+                    pw.SizedBox(height: 15),
+                    _sidebarSection('SKILLS', skills.take(6).map((s) => s.name).toList()),
+                  ],
+                  if (ach.isNotEmpty) ...[
+                    pw.SizedBox(height: 15),
+                    _sidebarSection('HONORS', ach.take(3).map((a) => a.title).toList()),
+                  ],
                 ],
-              )),
-            ]),
-          )),
-          pw.SizedBox(height: 16),
-        ],
-
-        // ── Education ─────────────────────────────────────────────────────
-        if (edu.isNotEmpty) ...[
-          pw.Container(height: 1.5, color: _cBlack),
-          pw.SizedBox(height: 12),
-          _ats2Header('EDUCATION'),
-          pw.Row(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: edu.map((e) => pw.Expanded(
-              child: pw.Padding(
-                padding: const pw.EdgeInsets.only(right: 12),
-                child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                  pw.Text(e.university, style: _ts(size: 10.5, bold: true)),
-                  pw.Text(e.major, style: _ts(size: 10, color: _cGrey700)),
-                  pw.Text('${e.startYear} – ${e.endYear}', style: _ts(size: 9.5, color: _cGrey600)),
-                  if (e.gpa != null)
-                    pw.Text('GPA: ${e.gpa}', style: _ts(size: 9.5, color: _cGrey600)),
-                ]),
               ),
-            )).toList(),
-          ),
-          pw.SizedBox(height: 16),
-        ],
-
-        // ── Publications ──────────────────────────────────────────────────
-        if (pub.isNotEmpty) ...[
-          pw.Container(height: 1.5, color: _cBlack),
-          pw.SizedBox(height: 12),
-          _ats2Header('PUBLICATION'),
-          ...pub.map((p) => pw.Container(
-            margin: const pw.EdgeInsets.only(bottom: 8),
-            child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-              pw.Text(p.title, style: _ts(size: 10.5, bold: true)),
-              if (p.journal.isNotEmpty || p.year.isNotEmpty)
-                pw.Text([p.journal, p.year].where((s) => s.isNotEmpty).join(' – '),
-                    style: _ts(size: 9.5, italic: true, color: _cGrey700)),
-              if (p.url.isNotEmpty)
-                pw.Text(p.url, style: _ts(size: 9, color: _cBlue)),
-            ]),
-          )),
-        ],
+            ),
+            
+            // Konten kanan
+            pw.Expanded(
+              child: pw.Container(
+                padding: const pw.EdgeInsets.fromLTRB(25, 30, 25, 30),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(fullName,
+                        style: _ts(size: 22, bold: true, color: _cNavy)),
+                    pw.SizedBox(height: 4),
+                    pw.Container(width: 45, height: 2, color: _cNavyAccent),
+                    pw.SizedBox(height: 15),
+                    
+                    if (summary.isNotEmpty) ...[
+                      pw.Text(summary,
+                          style: _ts(size: 10, color: _cGrey700, lineH: 1.5)),
+                      pw.SizedBox(height: 20),
+                    ],
+                    
+                    if (exp.isNotEmpty) ...[
+                      _rightSectionTitle('Professional Experience', 'briefcase'),
+                      ...exp.take(2).map((e) => _rightExperienceItem(e)),
+                      pw.SizedBox(height: 15),
+                    ],
+                    
+                    if (edu.isNotEmpty) ...[
+                      _rightSectionTitle('Education', 'graduation-cap'),
+                      ...edu.take(1).map((e) => _rightEducationItem(e)),
+                    ],
+                    
+                    if (linkedin.isNotEmpty || github.isNotEmpty) ...[
+                      pw.SizedBox(height: 15),
+                      pw.Wrap(
+                        spacing: 15,
+                        children: [
+                          if (linkedin.isNotEmpty) 
+                            _infoChip('link', linkedin),
+                          if (github.isNotEmpty) 
+                            _infoChip('code', github),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ],
     ));
   }
 
-  static pw.Widget _ats2Header(String t) => pw.Column(
-    crossAxisAlignment: pw.CrossAxisAlignment.start,
-    children: [
-      pw.Text(t, style: _ts(size: 12, bold: true, color: _cBlack, spacing: 0.8)),
-      pw.SizedBox(height: 4),
-      pw.Container(height: 1.5, color: _cGrey300),
-      pw.SizedBox(height: 10),
-    ],
-  );
+  static pw.Widget _sidebarSection(String title, List<String> items) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(title,
+            style: _ts(size: 9, bold: true, color: _cWhite, spacing: 1.2)),
+        pw.SizedBox(height: 6),
+        pw.Container(height: 1, color: _withOpacity(_cWhite, 0.3)),
+        pw.SizedBox(height: 8),
+        ...items.map((item) {
+          // Parse icon dari string
+          String displayText = item;
+          String iconName = 'circle';
+          if (item.startsWith('phone:')) {
+            iconName = 'phone';
+            displayText = item.substring(6);
+          } else if (item.startsWith('mail:')) {
+            iconName = 'mail';
+            displayText = item.substring(5);
+          } else if (item.startsWith('map-pin:')) {
+            iconName = 'map-pin';
+            displayText = item.substring(8);
+          }
+          return pw.Padding(
+            padding: const pw.EdgeInsets.only(bottom: 6),
+            child: pw.Row(
+              children: [
+                _buildIcon(iconName, size: 7, color: _cWhite),
+                pw.SizedBox(width: 6),
+                pw.Expanded(
+                  child: pw.Text(displayText,
+                      style: _ts(size: 8.5, color: _withOpacity(_cWhite, 0.9))),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  static pw.Widget _rightSectionTitle(String title, String iconName) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Row(
+          children: [
+            _buildIcon(iconName, size: 10),
+            pw.SizedBox(width: 6),
+            pw.Text(title,
+                style: _ts(size: 12, bold: true, color: _cNavy)),
+          ],
+        ),
+        pw.SizedBox(height: 5),
+        pw.Container(height: 1, color: _cGrey300),
+        pw.SizedBox(height: 10),
+      ],
+    );
+  }
+
+  static pw.Widget _rightExperienceItem(Experience e) {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 12),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(e.position,
+                  style: _ts(size: 10.5, bold: true, color: _cBlack)),
+              pw.Text('${e.startYear} - ${e.endYear}',
+                  style: _ts(size: 9, color: _cGrey600)),
+            ],
+          ),
+          pw.Text(e.organization,
+              style: _ts(size: 9.5, italic: true, color: _cNavy)),
+          pw.SizedBox(height: 4),
+          if (e.description.isNotEmpty)
+            pw.Text(e.description,
+                style: _ts(size: 9, color: _cGrey700, lineH: 1.4)),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _rightEducationItem(Education e) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(e.university,
+            style: _ts(size: 10.5, bold: true, color: _cBlack)),
+        pw.Text(e.major, style: _ts(size: 9.5, color: _cGrey700)),
+        pw.Text('${e.startYear} - ${e.endYear}',
+            style: _ts(size: 9, color: _cGrey600)),
+        if (e.gpa != null)
+          pw.Text('GPA: ${e.gpa}', style: _ts(size: 9, color: _cNavy)),
+      ],
+    );
+  }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  //  Creative v1 — Blue sidebar left, white content right
-  //  Referensi: existing sidebar biru
+  //  Creative v1 — Minimalist elegant
   // ═══════════════════════════════════════════════════════════════════════════
   static void _buildCreative1(
       pw.Document doc, String fullName, String email, String phone,
@@ -540,205 +702,186 @@ class PDFService {
       List<Skill> skills, List<Achievement> ach,
       List<Publication> pub, pw.MemoryImage? photo) {
 
-    const double sideW = 175.0;
-
-    // Split content into pages manually via MultiPage with fixed two-column Row
     doc.addPage(pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
-      margin: pw.EdgeInsets.zero,
+      margin: const pw.EdgeInsets.all(35),
       build: (ctx) => [
+        // Header dengan foto
+        pw.Center(
+          child: pw.Column(
+            children: [
+              if (photo != null) ...[
+                pw.Container(
+                  width: 100, height: 100,
+                  decoration: pw.BoxDecoration(
+                    shape: pw.BoxShape.circle,
+                    boxShadow: [
+                      pw.BoxShadow(
+                        color: _cGrey400, 
+                        blurRadius: 8, 
+                        offset: const PdfPoint(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: pw.ClipOval(child: pw.Image(photo, fit: pw.BoxFit.cover)),
+                ),
+                pw.SizedBox(height: 15),
+              ],
+              pw.Text(fullName,
+                  style: _ts(size: 26, bold: true, color: _cBlueDark, spacing: 1)),
+              pw.SizedBox(height: 5),
+              pw.Container(width: 60, height: 2, color: _cBlue),
+              pw.SizedBox(height: 12),
+              pw.Wrap(
+                spacing: 20,
+                alignment: pw.WrapAlignment.center,
+                children: [
+                  if (phone.isNotEmpty) _creativeContact('phone', phone),
+                  if (email.isNotEmpty) _creativeContact('mail', email),
+                  if (address.isNotEmpty) _creativeContact('map-pin', address),
+                  if (linkedin.isNotEmpty) _creativeContact('link', linkedin),
+                ],
+              ),
+              pw.SizedBox(height: 25),
+            ],
+          ),
+        ),
+        
+        if (summary.isNotEmpty) ...[
+          _creativeSection('About Me', 'user', [
+            pw.Container(
+              child: pw.Text(summary,
+                  style: _ts(size: 10.5, color: _cGrey700, lineH: 1.6),
+                  textAlign: pw.TextAlign.center),
+            ),
+          ]),
+          pw.SizedBox(height: 20),
+        ],
+        
+        // 2 column untuk skills, experience, education
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            // ── Sidebar ────────────────────────────────────────────────
-            pw.ConstrainedBox(
-              constraints: const pw.BoxConstraints(maxWidth: sideW),
-              child: pw.Container(
-                width: sideW,
-                color: _cBlue,
-                padding: const pw.EdgeInsets.fromLTRB(16, 28, 16, 28),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Center(child: pw.Container(
-                      width: 84, height: 84,
-                      decoration: pw.BoxDecoration(
-                        shape: pw.BoxShape.circle,
-                        color: _cWhite,
-                        border: pw.Border.all(color: _cWhite, width: 2.5),
-                      ),
-                      child: photo != null
-                          ? pw.ClipOval(child: pw.Image(photo, fit: pw.BoxFit.cover))
-                          : pw.Center(child: pw.Text(
-                              fullName.isNotEmpty ? fullName[0].toUpperCase() : '?',
-                              style: _ts(size: 32, bold: true, color: _cBlue))),
-                    )),
-                    pw.SizedBox(height: 10),
-                    pw.Center(child: pw.Text(fullName,
-                        textAlign: pw.TextAlign.center,
-                        style: _ts(size: 11.5, bold: true, color: _cWhite))),
-
-                    pw.SizedBox(height: 22),
-                    _cr1SideSection('KONTAK'),
-                    if (email.isNotEmpty)    _cr1Contact('Email', email),
-                    if (phone.isNotEmpty)    _cr1Contact('Telepon', phone),
-                    if (address.isNotEmpty)  _cr1Contact('Alamat', address),
-                    if (linkedin.isNotEmpty) _cr1Contact('LinkedIn', linkedin),
-                    if (github.isNotEmpty)   _cr1Contact('GitHub', github),
-
-                    if (skills.isNotEmpty) ...[
-                      pw.SizedBox(height: 20),
-                      _cr1SideSection('KEAHLIAN'),
-                      ...skills.map((s) => pw.Container(
-                        margin: const pw.EdgeInsets.only(bottom: 6),
-                        child: pw.Text('• ${s.name}',
-                            style: _ts(size: 9.5, color: _cWhite)),
-                      )),
-                    ],
-
-                    if (ach.isNotEmpty) ...[
-                      pw.SizedBox(height: 20),
-                      _cr1SideSection('PENGHARGAAN'),
-                      ...ach.map((a) => pw.Container(
-                        margin: const pw.EdgeInsets.only(bottom: 7),
-                        child: pw.Text('• ${a.title}',
-                            style: _ts(size: 9.5, color: _cWhite)),
-                      )),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-
-            // ── Right column ───────────────────────────────────────────
-            pw.Expanded(child: pw.Container(
-              padding: const pw.EdgeInsets.fromLTRB(22, 28, 22, 28),
+            pw.Expanded(
+              flex: 45,
               child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text(fullName,
-                      style: _ts(size: 24, bold: true, color: _cBlueDark)),
-                  pw.SizedBox(height: 3),
-                  pw.Container(width: 46, height: 3, color: _cBlue),
-                  pw.SizedBox(height: 20),
-
-                  if (summary.isNotEmpty) ...[
-                    _cr1RightSection('PROFIL'),
-                    pw.Text(summary, style: _ts(size: 10.5, color: _cGrey800, lineH: 1.6)),
-                    pw.SizedBox(height: 16),
-                  ],
-
-                  if (exp.isNotEmpty) ...[
-                    _cr1RightSection('PENGALAMAN'),
-                    ...exp.map((e) => pw.Container(
-                      margin: const pw.EdgeInsets.only(bottom: 13),
-                      child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                        pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
-                          pw.Expanded(child: pw.Text(e.position,
-                              style: _ts(size: 11, bold: true, color: _cBlack))),
-                          pw.SizedBox(width: 6),
-                          _cr1Badge('${e.startYear}–${e.endYear}'),
-                        ]),
-                        pw.Text(e.organization,
-                            style: _ts(size: 10, italic: true, color: _cGrey700)),
-                        if (e.description.isNotEmpty) ...[
-                          pw.SizedBox(height: 4),
-                          pw.Text(e.description,
-                              style: _ts(size: 9.5, color: _cGrey800, lineH: 1.4)),
-                        ],
-                      ]),
-                    )),
-                    pw.SizedBox(height: 6),
-                  ],
-
-                  if (edu.isNotEmpty) ...[
-                    _cr1RightSection('PENDIDIKAN'),
-                    ...edu.map((e) => pw.Container(
-                      margin: const pw.EdgeInsets.only(bottom: 12),
-                      child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                        pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
-                          pw.Expanded(child: pw.Text(e.university,
-                              style: _ts(size: 11, bold: true, color: _cBlack))),
-                          pw.SizedBox(width: 6),
-                          _cr1Badge('${e.startYear}–${e.endYear}'),
-                        ]),
-                        pw.Text(e.major,
-                            style: _ts(size: 10, italic: true, color: _cGrey700)),
-                        if (e.gpa != null)
-                          pw.Text('IPK: ${e.gpa}', style: _ts(size: 9.5, color: _cGrey600)),
-                      ]),
-                    )),
-                    pw.SizedBox(height: 6),
-                  ],
-
-                  if (pub.isNotEmpty) ...[
-                    _cr1RightSection('PUBLIKASI'),
-                    ...pub.map((p) => pw.Container(
-                      margin: const pw.EdgeInsets.only(bottom: 10),
-                      child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                        pw.Text(p.title, style: _ts(size: 10.5, bold: true)),
-                        if (p.journal.isNotEmpty || p.year.isNotEmpty)
-                          pw.Text([p.journal, p.year].where((s) => s.isNotEmpty).join(' – '),
-                              style: _ts(size: 9.5, italic: true, color: _cGrey700)),
-                        if (p.url.isNotEmpty)
-                          pw.Text(p.url, style: _ts(size: 9, color: _cBlue)),
-                      ]),
-                    )),
-                  ],
+                  if (skills.isNotEmpty)
+                    _creativeSection('Core Competencies', 'settings', 
+                      skills.take(6).map((s) => _creativeBullet(s.name)).toList()),
+                  if (ach.isNotEmpty)
+                    _creativeSection('Key Achievements', 'trophy',
+                      ach.take(3).map((a) => _creativeBullet(a.title)).toList()),
                 ],
               ),
-            )),
+            ),
+            pw.SizedBox(width: 20),
+            pw.Expanded(
+              flex: 55,
+              child: pw.Column(
+                children: [
+                  if (exp.isNotEmpty)
+                    _creativeSection('Experience', 'briefcase',
+                      exp.take(2).map((e) => _creativeExperience(e)).toList()),
+                  if (edu.isNotEmpty)
+                    _creativeSection('Education', 'graduation-cap',
+                      edu.take(1).map((e) => _creativeEducation(e)).toList()),
+                ],
+              ),
+            ),
           ],
         ),
       ],
     ));
   }
 
-  static pw.Widget _cr1SideSection(String t) => pw.Column(
-    crossAxisAlignment: pw.CrossAxisAlignment.start,
-    children: [
-      pw.Text(t, style: _ts(size: 8.5, bold: true, color: _cWhite, spacing: 1.5)),
-      pw.SizedBox(height: 5),
-      pw.Container(height: 0.5, color: const PdfColor(1, 1, 1, 0.35)),
-      pw.SizedBox(height: 10),
-    ],
-  );
+  static pw.Widget _creativeContact(String iconName, String text) {
+    return pw.Row(
+      mainAxisSize: pw.MainAxisSize.min,
+      children: [
+        _buildIcon(iconName, size: 10),
+        pw.SizedBox(width: 5),
+        pw.Text(text, style: _ts(size: 9.5, color: _cGrey700)),
+      ],
+    );
+  }
 
-  static pw.Widget _cr1Contact(String label, String value) => pw.Container(
-    margin: const pw.EdgeInsets.only(bottom: 9),
-    child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-      pw.Text(label.toUpperCase(),
-          style: _ts(size: 7.5, color: const PdfColor(1, 1, 1, 0.55), spacing: 0.8)),
-      pw.SizedBox(height: 1.5),
-      pw.Text(value, style: _ts(size: 9.5, color: _cWhite)),
-    ]),
-  );
+  static pw.Widget _creativeSection(String title, String iconName, List<pw.Widget> children) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Row(
+          children: [
+            _buildIcon(iconName, size: 10),
+            pw.SizedBox(width: 6),
+            pw.Text(title,
+                style: _ts(size: 12, bold: true, color: _cBlueDark)),
+          ],
+        ),
+        pw.SizedBox(height: 8),
+        pw.Container(height: 1, color: _cBlueLight),
+        pw.SizedBox(height: 10),
+        ...children,
+        pw.SizedBox(height: 15),
+      ],
+    );
+  }
 
-  static pw.Widget _cr1RightSection(String t) => pw.Column(
-    crossAxisAlignment: pw.CrossAxisAlignment.start,
-    children: [
-      pw.Row(children: [
-        pw.Container(width: 3, height: 13, color: _cBlue),
-        pw.SizedBox(width: 7),
-        pw.Text(t, style: _ts(size: 11, bold: true, color: _cBlueMid, spacing: 0.8)),
-      ]),
-      pw.SizedBox(height: 5),
-      pw.Container(height: 0.5, color: _cBlueLight),
-      pw.SizedBox(height: 10),
-    ],
-  );
+  static pw.Widget _creativeBullet(String text) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 6),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text('▹ ', style: _ts(size: 10, color: _cBlue)),
+          pw.Expanded(
+            child: pw.Text(text,
+                style: _ts(size: 10, color: _cGrey700)),
+          ),
+        ],
+      ),
+    );
+  }
 
-  static pw.Widget _cr1Badge(String t) => pw.Container(
-    padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
-    decoration: pw.BoxDecoration(
-      color: _cBlueLight, borderRadius: pw.BorderRadius.circular(3),
-    ),
-    child: pw.Text(t, style: _ts(size: 8.5, color: _cBlueDark)),
-  );
+  static pw.Widget _creativeExperience(Experience e) {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 12),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(e.position,
+              style: _ts(size: 11, bold: true, color: _cBlack)),
+          pw.Text(e.organization,
+              style: _ts(size: 9.5, italic: true, color: _cBlue)),
+          pw.Text('${e.startYear} - ${e.endYear}',
+              style: _ts(size: 9, color: _cGrey600)),
+          if (e.description.isNotEmpty) ...[
+            pw.SizedBox(height: 4),
+            pw.Text(e.description,
+                style: _ts(size: 9.5, color: _cGrey700, lineH: 1.4)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _creativeEducation(Education e) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(e.university,
+            style: _ts(size: 11, bold: true, color: _cBlack)),
+        pw.Text(e.major, style: _ts(size: 10, color: _cGrey700)),
+        pw.Text('${e.startYear} - ${e.endYear}',
+            style: _ts(size: 9, color: _cGrey600)),
+        if (e.gpa != null)
+          pw.Text('GPA: ${e.gpa}', style: _ts(size: 9, color: _cBlue)),
+      ],
+    );
+  }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  //  Creative v2 — Red/cream two-column, referensi Rachelle & Juliana
-  //  Contact strip top, header box photo+name+summary, body 2-col
+  //  Creative v2 — Colorful and modern
   // ═══════════════════════════════════════════════════════════════════════════
   static void _buildCreative2(
       pw.Document doc, String fullName, String email, String phone,
@@ -749,210 +892,224 @@ class PDFService {
 
     doc.addPage(pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
-      margin: const pw.EdgeInsets.fromLTRB(28, 20, 28, 28),
+      margin: const pw.EdgeInsets.all(30),
       build: (ctx) => [
-
-        // ── Contact strip ─────────────────────────────────────────────────
+        // Header dengan warna
         pw.Container(
-          padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          padding: const pw.EdgeInsets.all(20),
           decoration: pw.BoxDecoration(
-            color: _cRed, borderRadius: pw.BorderRadius.circular(6),
+            gradient: pw.LinearGradient(
+              colors: [_cBlueDark, _cBlue],
+              begin: pw.Alignment.centerLeft,
+              end: pw.Alignment.centerRight,
+            ),
+            borderRadius: pw.BorderRadius.circular(12),
           ),
           child: pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
             children: [
-              if (phone.isNotEmpty)
-                pw.Text(phone,   style: _ts(size: 9.5, color: _cWhite)),
-              if (email.isNotEmpty)
-                pw.Text(email,   style: _ts(size: 9.5, color: _cWhite)),
-              if (address.isNotEmpty)
-                pw.Text(address, style: _ts(size: 9.5, color: _cWhite)),
-            ],
-          ),
-        ),
-        pw.SizedBox(height: 13),
-
-        // ── Header box ────────────────────────────────────────────────────
-        pw.Container(
-          padding: const pw.EdgeInsets.all(16),
-          decoration: pw.BoxDecoration(
-            border: pw.Border.all(color: _cGrey300, width: 0.8),
-            borderRadius: pw.BorderRadius.circular(8),
-          ),
-          child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-            if (photo != null) ...[
-              pw.Container(
-                width: 90, height: 90,
-                decoration: pw.BoxDecoration(
-                  borderRadius: pw.BorderRadius.circular(8),
-                  border: pw.Border.all(color: _cRed, width: 2),
+              if (photo != null) ...[
+                pw.Container(
+                  width: 70, height: 70,
+                  decoration: const pw.BoxDecoration(
+                    shape: pw.BoxShape.circle,
+                    color: _cWhite,
+                  ),
+                  child: pw.ClipOval(child: pw.Image(photo, fit: pw.BoxFit.cover)),
                 ),
-                child: pw.ClipRRect(
-                  horizontalRadius: 6, verticalRadius: 6,
-                  child: pw.Image(photo, fit: pw.BoxFit.cover),
+                pw.SizedBox(width: 15),
+              ],
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(fullName,
+                        style: _ts(size: 22, bold: true, color: _cWhite)),
+                    pw.SizedBox(height: 5),
+                    pw.Text(summary.isNotEmpty ? summary.split('.').first : '',
+                        style: _ts(size: 10, color: _withOpacity(_cWhite, 0.9))),
+                  ],
                 ),
               ),
-              pw.SizedBox(width: 16),
             ],
-            pw.Expanded(child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text('Hi! I\'m', style: _ts(size: 13, color: _cGrey700)),
-                pw.Text(fullName,
-                    style: _ts(size: 22, bold: true, color: _cBlack)),
-                pw.SizedBox(height: 8),
-                if (summary.isNotEmpty)
-                  pw.Text(summary,
-                      style: _ts(size: 10, color: _cGrey700, lineH: 1.6)),
-              ],
-            )),
-          ]),
+          ),
         ),
-        pw.SizedBox(height: 15),
-
-        // ── Body: 2 columns ───────────────────────────────────────────────
-        pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-
-          // Left — experience + publications + skills box
-          pw.Expanded(flex: 55, child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
+        pw.SizedBox(height: 20),
+        
+        // Contact info bar
+        pw.Container(
+          padding: const pw.EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+          decoration: pw.BoxDecoration(
+            color: _cGrey100,
+            borderRadius: pw.BorderRadius.circular(8),
+          ),
+          child: pw.Wrap(
+            spacing: 20,
+            runSpacing: 5,
+            alignment: pw.WrapAlignment.center,
             children: [
-              if (exp.isNotEmpty) ...[
-                _cr2Section('WORK EXPERIENCE'),
-                ...exp.map((e) => pw.Container(
-                  margin: const pw.EdgeInsets.only(bottom: 13),
-                  child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                    pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
-                      pw.Container(width: 7, height: 7,
-                          decoration: const pw.BoxDecoration(shape: pw.BoxShape.circle, color: _cRed)),
-                      pw.SizedBox(width: 6),
-                      pw.Expanded(child: pw.Text(
-                        '${e.organization} | ${e.startYear} – ${e.endYear}',
-                        style: _ts(size: 10, bold: true, color: _cRedDark),
-                      )),
-                    ]),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.only(left: 13, top: 3),
-                      child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                        pw.Text(e.position,
-                            style: _ts(size: 10, bold: true, color: _cRedDark)),
-                        pw.SizedBox(height: 4),
-                        if (e.description.isNotEmpty)
-                          ...e.description.split('\n').map((line) => line.trim().isEmpty
-                              ? pw.SizedBox(height: 2)
-                              : pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                                  pw.Text('• ', style: _ts(size: 10)),
-                                  pw.Expanded(child: pw.Text(line.trim(),
-                                      style: _ts(size: 10, color: _cGrey800, lineH: 1.4))),
-                                ])),
-                      ]),
-                    ),
-                  ]),
-                )),
-                pw.SizedBox(height: 6),
-              ],
-
-              if (pub.isNotEmpty) ...[
-                _cr2Section('PUBLICATION'),
-                ...pub.map((p) => pw.Container(
-                  margin: const pw.EdgeInsets.only(bottom: 8),
-                  child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                    pw.Text(p.title, style: _ts(size: 10, bold: true)),
-                    if (p.journal.isNotEmpty || p.year.isNotEmpty)
-                      pw.Text([p.journal, p.year].where((s) => s.isNotEmpty).join(' – '),
-                          style: _ts(size: 9.5, italic: true, color: _cGrey700)),
-                    if (p.url.isNotEmpty)
-                      pw.Text(p.url, style: _ts(size: 9, color: _cRed)),
-                  ]),
-                )),
-                pw.SizedBox(height: 8),
-              ],
-
-              // Soft Skills box
-              if (skills.isNotEmpty) ...[
-                pw.SizedBox(height: 8),
-                pw.Container(
-                  padding: const pw.EdgeInsets.all(12),
-                  decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: _cRed, width: 1.5),
-                    borderRadius: pw.BorderRadius.circular(8),
-                  ),
-                  child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                    pw.Container(
-                      padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                      decoration: pw.BoxDecoration(
-                        color: _cRed, borderRadius: pw.BorderRadius.circular(20),
-                      ),
-                      child: pw.Text('Soft Skills',
-                          style: _ts(size: 10, bold: true, color: _cWhite)),
-                    ),
-                    pw.SizedBox(height: 10),
-                    pw.Wrap(
-                      spacing: 18, runSpacing: 6,
-                      children: skills.map((s) => pw.Text(s.name,
-                          style: _ts(size: 9.5, color: _cGrey700))).toList(),
-                    ),
-                  ]),
-                ),
-              ],
+              if (phone.isNotEmpty) _modernContact('phone', phone),
+              if (email.isNotEmpty) _modernContact('mail', email),
+              if (address.isNotEmpty) _modernContact('map-pin', address),
+              if (linkedin.isNotEmpty) _modernContact('link', linkedin),
+              if (github.isNotEmpty) _modernContact('code', github),
             ],
-          )),
-
-          pw.SizedBox(width: 16),
-
-          // Right — education + achievements + links
-          pw.Expanded(flex: 45, child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              if (edu.isNotEmpty) ...[
-                _cr2Section('EDUCATION'),
-                ...edu.map((e) => pw.Container(
-                  margin: const pw.EdgeInsets.only(bottom: 11),
-                  child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                    pw.Text('• ${e.startYear} | ${e.university}',
-                        style: _ts(size: 10, bold: true, color: _cRedDark)),
-                    pw.Text(e.major, style: _ts(size: 9.5, color: _cGrey700)),
-                    if (e.gpa != null)
-                      pw.Text('GPA: ${e.gpa}', style: _ts(size: 9.5, color: _cGrey600)),
-                  ]),
-                )),
-                pw.SizedBox(height: 8),
-              ],
-
-              if (ach.isNotEmpty) ...[
-                _cr2Section('AWARDS RECEIVED'),
-                ...ach.map((a) => pw.Container(
-                  margin: const pw.EdgeInsets.only(bottom: 9),
-                  child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                    pw.Text(a.title, style: _ts(size: 10, bold: true, color: _cRedDark)),
-                    if (a.description.isNotEmpty)
-                      pw.Text(a.description, style: _ts(size: 9.5, color: _cGrey700)),
-                  ]),
-                )),
-                pw.SizedBox(height: 8),
-              ],
-
-              if (linkedin.isNotEmpty || github.isNotEmpty) ...[
-                _cr2Section('LINKS'),
-                if (linkedin.isNotEmpty)
-                  pw.Text(linkedin, style: _ts(size: 9.5, color: _cRed)),
-                if (github.isNotEmpty)
-                  pw.Text(github, style: _ts(size: 9.5, color: _cRed)),
-              ],
-            ],
-          )),
-        ]),
+          ),
+        ),
+        pw.SizedBox(height: 20),
+        
+        // Main content 2 columns
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Expanded(
+              flex: 50,
+              child: pw.Column(
+                children: [
+                  if (exp.isNotEmpty) ...[
+                    _modernSection('briefcase', 'Work Experience',
+                      exp.take(2).map((e) => _modernExperience(e)).toList()),
+                  ],
+                  if (skills.isNotEmpty) ...[
+                    _modernSection('settings', 'Skills',
+                      [_modernSkillTags(skills.take(8).toList())]),
+                  ],
+                ],
+              ),
+            ),
+            pw.SizedBox(width: 20),
+            pw.Expanded(
+              flex: 50,
+              child: pw.Column(
+                children: [
+                  if (edu.isNotEmpty) ...[
+                    _modernSection('graduation-cap', 'Education',
+                      edu.take(2).map((e) => _modernEducation(e)).toList()),
+                  ],
+                  if (ach.isNotEmpty) ...[
+                    _modernSection('trophy', 'Awards',
+                      ach.take(3).map((a) => _modernAchievement(a)).toList()),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ],
     ));
   }
 
-  static pw.Widget _cr2Section(String t) => pw.Column(
-    crossAxisAlignment: pw.CrossAxisAlignment.start,
-    children: [
-      pw.Text(t, style: _ts(size: 11.5, bold: true, color: _cRed, spacing: 0.5)),
-      pw.SizedBox(height: 4),
-      pw.Container(height: 1, color: _cRed),
-      pw.SizedBox(height: 9),
-    ],
-  );
+  static pw.Widget _modernContact(String iconName, String text) {
+    return pw.Row(
+      mainAxisSize: pw.MainAxisSize.min,
+      children: [
+        _buildIcon(iconName, size: 9),
+        pw.SizedBox(width: 4),
+        pw.Text(text, style: _ts(size: 9, color: _cGrey700)),
+      ],
+    );
+  }
+
+  static pw.Widget _modernSection(String iconName, String title, List<pw.Widget> children) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Row(
+          children: [
+            _buildIcon(iconName, size: 10),
+            pw.SizedBox(width: 6),
+            pw.Text(title,
+                style: _ts(size: 12, bold: true, color: _cBlueDark)),
+          ],
+        ),
+        pw.SizedBox(height: 8),
+        pw.Container(height: 2, width: 35, color: _cBlue),
+        pw.SizedBox(height: 10),
+        ...children,
+        pw.SizedBox(height: 15),
+      ],
+    );
+  }
+
+  static pw.Widget _modernExperience(Experience e) {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 12),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(e.position,
+              style: _ts(size: 11, bold: true, color: _cBlack)),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(e.organization,
+                  style: _ts(size: 9.5, color: _cBlue)),
+              pw.Text('${e.startYear} - ${e.endYear}',
+                  style: _ts(size: 9, color: _cGrey600)),
+            ],
+          ),
+          if (e.description.isNotEmpty) ...[
+            pw.SizedBox(height: 4),
+            pw.Text(e.description,
+                style: _ts(size: 9.5, color: _cGrey700, lineH: 1.4)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _modernSkillTags(List<Skill> skills) {
+    return pw.Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      children: skills.map((s) => pw.Container(
+        padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: pw.BoxDecoration(
+          color: _cBlueLight,
+          borderRadius: pw.BorderRadius.circular(15),
+        ),
+        child: pw.Text(s.name,
+            style: _ts(size: 9, color: _cBlueDark)),
+      )).toList(),
+    );
+  }
+
+  static pw.Widget _modernEducation(Education e) {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 10),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(e.university,
+              style: _ts(size: 10.5, bold: true, color: _cBlack)),
+          pw.Text(e.major, style: _ts(size: 9.5, color: _cGrey700)),
+          pw.Text('${e.startYear} - ${e.endYear}',
+              style: _ts(size: 9, color: _cGrey600)),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _modernAchievement(Achievement a) {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 8),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text('⭐ ', style: _ts(size: 9, color: _cBlue)),
+          pw.Expanded(
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(a.title,
+                    style: _ts(size: 10, bold: true, color: _cBlack)),
+                if (a.description.isNotEmpty)
+                  pw.Text(a.description,
+                      style: _ts(size: 9, color: _cGrey600)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

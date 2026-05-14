@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:device_preview/device_preview.dart';
 
 import 'firebase_options.dart';
 import 'state/cv_provider.dart';
@@ -18,21 +17,18 @@ import 'pages/auth/landing_page.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ Fix paling aman untuk duplicate Firebase
+  // ✅ Inisialisasi Firebase dengan error handling
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-  } catch (_) {
-    // Sudah di-initialize → abaikan
+    print('✅ Firebase initialized successfully');
+  } catch (e) {
+    print('❌ Firebase initialization error: $e');
+    // Jika sudah di-initialize, tetap lanjut
   }
 
-  runApp(
-    DevicePreview(
-      enabled: true,
-      builder: (context) => const MyApp(),
-    ),
-  );
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -48,12 +44,10 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'CV Builder Mahasiswa',
         debugShowCheckedModeBanner: false,
-        locale: DevicePreview.locale(context),
-        builder: DevicePreview.appBuilder,
         theme: ThemeData(
           primarySwatch: Colors.blue,
           useMaterial3: true,
-          textTheme: GoogleFonts.poppinsTextTheme(),
+          fontFamily: GoogleFonts.poppins().fontFamily,
           appBarTheme: AppBarTheme(
             elevation: 0,
             centerTitle: true,
@@ -75,8 +69,16 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  bool _isLoading = true;
+  bool _hasLoadedData = false;
 
   @override
   Widget build(BuildContext context) {
@@ -89,18 +91,47 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        if (snapshot.hasData) {
-          // Load data setelah login
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            context.read<UserProvider>().fetchUserData();
-            context.read<CVProvider>().loadFromFirestore();
-          });
+        if (snapshot.hasData && snapshot.data != null) {
+          // Load data hanya sekali setelah login
+          if (!_hasLoadedData) {
+            _hasLoadedData = true;
+            
+            // Gunakan WidgetsBinding untuk memastikan context siap
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _loadUserData();
+            });
+          }
+          
           return const MainNavigation();
         }
 
+        // Reset flag ketika logout
+        _hasLoadedData = false;
         return const LandingPage();
       },
     );
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final userProvider = context.read<UserProvider>();
+      final cvProvider = context.read<CVProvider>();
+      
+      await Future.wait([
+        userProvider.fetchUserData(),
+        cvProvider.loadFromFirestore(),
+      ]);
+      
+      print('✅ User and CV data loaded successfully');
+    } catch (e) {
+      print('❌ Error loading data: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal memuat data: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }
 
@@ -144,30 +175,30 @@ class _MainNavigationState extends State<MainNavigation> {
           indicatorColor: Colors.blue.shade100,
           surfaceTintColor: Colors.white,
           shadowColor: Colors.black26,
-          destinations: [
+          destinations: const [
             NavigationDestination(
-              icon: Icon(Icons.home_outlined, color: Colors.grey.shade500),
-              selectedIcon: const Icon(Icons.home, color: Colors.blue),
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home),
               label: 'Beranda',
             ),
             NavigationDestination(
-              icon: Icon(Icons.edit_outlined, color: Colors.grey.shade500),
-              selectedIcon: const Icon(Icons.edit, color: Colors.blue),
+              icon: Icon(Icons.edit_outlined),
+              selectedIcon: Icon(Icons.edit),
               label: 'Buat CV',
             ),
             NavigationDestination(
-              icon: Icon(Icons.preview_outlined, color: Colors.grey.shade500),
-              selectedIcon: const Icon(Icons.preview, color: Colors.blue),
+              icon: Icon(Icons.preview_outlined),
+              selectedIcon: Icon(Icons.preview),
               label: 'Pratinjau',
             ),
             NavigationDestination(
-              icon: Icon(Icons.ios_share_outlined, color: Colors.grey.shade500),
-              selectedIcon: const Icon(Icons.ios_share, color: Colors.blue),
+              icon: Icon(Icons.ios_share_outlined),
+              selectedIcon: Icon(Icons.ios_share),
               label: 'Ekspor',
             ),
             NavigationDestination(
-              icon: Icon(Icons.person_outline, color: Colors.grey.shade500),
-              selectedIcon: const Icon(Icons.person, color: Colors.blue),
+              icon: Icon(Icons.person_outline),
+              selectedIcon: Icon(Icons.person),
               label: 'Profil',
             ),
           ],

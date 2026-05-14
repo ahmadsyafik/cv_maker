@@ -153,6 +153,10 @@ class _BuilderPageState extends State<BuilderPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 6, vsync: this);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<CVProvider>().loadFromFirestore();
+    });
   }
 
   @override
@@ -192,16 +196,33 @@ class _BuilderPageState extends State<BuilderPage>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: const [
-          PersonalDataTab(),
-          EducationTab(),
-          ExperienceTab(),
-          SkillTab(),
-          AchievementTab(),
-          PublicationTab(),
-        ],
+      body: Consumer<CVProvider>(
+        builder: (context, cvProvider, child) {
+          if (cvProvider.isLoading) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: _kBlue),
+                  SizedBox(height: 16),
+                  Text('Memuat data CV...'),
+                ],
+              ),
+            );
+          }
+          
+          return TabBarView(
+            controller: _tabController,
+            children: const [
+              PersonalDataTab(),
+              EducationTab(),
+              ExperienceTab(),
+              SkillTab(),
+              AchievementTab(),
+              PublicationTab(),
+            ],
+          );
+        },
       ),
     );
   }
@@ -500,20 +521,32 @@ class _EducationTabState extends State<EducationTab> {
 
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
-      final education = Education(
-        university: _universityController.text,
-        major: _majorController.text,
-        startYear: _startYearController.text,
-        endYear: _endYearController.text,
-        gpa: _gpaController.text.isNotEmpty
-            ? double.tryParse(_gpaController.text)
-            : null,
-      );
       if (_editingIndex != null) {
-        context.read<CVProvider>().updateEducation(_editingIndex!, education);
+        // Untuk UPDATE: gunakan copyWith untuk mempertahankan ID
+        final existingEducation = context.read<CVProvider>().educations[_editingIndex!];
+        final updatedEducation = existingEducation.copyWith(
+          university: _universityController.text,
+          major: _majorController.text,
+          startYear: _startYearController.text,
+          endYear: _endYearController.text,
+          gpa: _gpaController.text.isNotEmpty
+              ? double.tryParse(_gpaController.text)
+              : null,
+        );
+        context.read<CVProvider>().updateEducation(_editingIndex!, updatedEducation);
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Pendidikan berhasil diperbarui')));
       } else {
+        // Untuk CREATE: gunakan Education.create()
+        final education = Education.create(
+          university: _universityController.text,
+          major: _majorController.text,
+          startYear: _startYearController.text,
+          endYear: _endYearController.text,
+          gpa: _gpaController.text.isNotEmpty
+              ? double.tryParse(_gpaController.text)
+              : null,
+        );
         context.read<CVProvider>().addEducation(education);
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Pendidikan berhasil ditambahkan')));
@@ -682,18 +715,28 @@ class _ExperienceTabState extends State<ExperienceTab> {
 
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
-      final experience = Experience(
-        organization: _organizationController.text,
-        position: _positionController.text,
-        startYear: _startYearController.text,
-        endYear: _endYearController.text,
-        description: _descriptionController.text,
-      );
       if (_editingIndex != null) {
-        context.read<CVProvider>().updateExperience(_editingIndex!, experience);
+        // Untuk UPDATE: gunakan copyWith untuk mempertahankan ID
+        final existingExp = context.read<CVProvider>().experiences[_editingIndex!];
+        final updatedExperience = existingExp.copyWith(
+          organization: _organizationController.text,
+          position: _positionController.text,
+          startYear: _startYearController.text,
+          endYear: _endYearController.text,
+          description: _descriptionController.text,
+        );
+        context.read<CVProvider>().updateExperience(_editingIndex!, updatedExperience);
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Pengalaman berhasil diperbarui')));
       } else {
+        // Untuk CREATE: gunakan Experience.create()
+        final experience = Experience.create(
+          organization: _organizationController.text,
+          position: _positionController.text,
+          startYear: _startYearController.text,
+          endYear: _endYearController.text,
+          description: _descriptionController.text,
+        );
         context.read<CVProvider>().addExperience(experience);
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Pengalaman berhasil ditambahkan')));
@@ -834,7 +877,8 @@ class _SkillTabState extends State<SkillTab> {
 
   void _addSkill() {
     if (_skillController.text.trim().isNotEmpty) {
-      context.read<CVProvider>().addSkill(Skill(name: _skillController.text.trim()));
+      final skill = Skill.create(name: _skillController.text.trim());
+      context.read<CVProvider>().addSkill(skill);
       _skillController.clear();
     }
   }
@@ -949,13 +993,23 @@ class _AchievementTabState extends State<AchievementTab> {
 
   void _submit() {
     if (_formKey.currentState!.validate()) {
-      final ach = Achievement(
-          title: _titleController.text, description: _descController.text);
       if (_editingIndex != null) {
-        context.read<CVProvider>().updateAchievement(_editingIndex!, ach);
+        // Untuk UPDATE: buat Achievement baru dengan ID yang sama
+        final existingAch = context.read<CVProvider>().achievements[_editingIndex!];
+        final updatedAchievement = Achievement(
+          id: existingAch.id,
+          title: _titleController.text,
+          description: _descController.text,
+        );
+        context.read<CVProvider>().updateAchievement(_editingIndex!, updatedAchievement);
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Penghargaan berhasil diperbarui')));
       } else {
+        // Untuk CREATE: gunakan Achievement.create()
+        final ach = Achievement.create(
+          title: _titleController.text,
+          description: _descController.text,
+        );
         context.read<CVProvider>().addAchievement(ach);
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Penghargaan berhasil ditambahkan')));
@@ -1097,17 +1151,27 @@ class _PublicationTabState extends State<PublicationTab> {
 
   void _submit() {
     if (_formKey.currentState!.validate()) {
-      final pub = Publication(
-        title: _titleController.text,
-        journal: _journalController.text,
-        year: _yearController.text,
-        url: _urlController.text,
-      );
       if (_editingIndex != null) {
-        context.read<CVProvider>().updatePublication(_editingIndex!, pub);
+        // Untuk UPDATE: buat Publication baru dengan ID yang sama
+        final existingPub = context.read<CVProvider>().publications[_editingIndex!];
+        final updatedPublication = Publication(
+          id: existingPub.id,
+          title: _titleController.text,
+          journal: _journalController.text,
+          year: _yearController.text,
+          url: _urlController.text,
+        );
+        context.read<CVProvider>().updatePublication(_editingIndex!, updatedPublication);
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Publikasi berhasil diperbarui')));
       } else {
+        // Untuk CREATE: gunakan Publication.create()
+        final pub = Publication.create(
+          title: _titleController.text,
+          journal: _journalController.text,
+          year: _yearController.text,
+          url: _urlController.text,
+        );
         context.read<CVProvider>().addPublication(pub);
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Publikasi berhasil ditambahkan')));
