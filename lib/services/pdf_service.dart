@@ -1,9 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -20,12 +18,9 @@ import '../state/cv_provider.dart';
 // ─── Colors ───────────────────────────────────────────────────────────────────
 const _cBlue       = PdfColor.fromInt(0xFF1565C0);
 const _cBlueDark   = PdfColor.fromInt(0xFF0D47A1);
-const _cBlueMid    = PdfColor.fromInt(0xFF1976D2);
 const _cBlueLight  = PdfColor.fromInt(0xFFE3F2FD);
 const _cNavy       = PdfColor.fromInt(0xFF1B2B4B);
 const _cNavyAccent = PdfColor.fromInt(0xFF2E6DA4);
-const _cRed        = PdfColor.fromInt(0xFFC62828);
-const _cRedDark    = PdfColor.fromInt(0xFF8B0000);
 const _cWhite      = PdfColors.white;
 const _cBlack      = PdfColor.fromInt(0xFF1A1A1A);
 const _cGrey800    = PdfColor.fromInt(0xFF333333);
@@ -35,7 +30,7 @@ const _cGrey400    = PdfColor.fromInt(0xFFBDBDBD);
 const _cGrey300    = PdfColor.fromInt(0xFFE0E0E0);
 const _cGrey100    = PdfColor.fromInt(0xFFF5F5F5);
 
-// ─── Font singletons ──────────────────────────────────────────────────────────
+// ─── Font singletons 
 late pw.Font _regular;
 late pw.Font _bold;
 late pw.Font _italic;
@@ -58,7 +53,7 @@ Future<void> _loadFonts() async {
   _fontsReady = true;
 }
 
-// ─── Text style helper ────────────────────────────────────────────────────────
+// ─── Text style helper 
 pw.TextStyle _ts({
   double size = 10,
   bool bold = false,
@@ -88,28 +83,29 @@ PdfColor _withOpacity(PdfColor color, double opacity) {
 
 // Helper untuk mendapatkan emoji dari nama icon
 String _getIconEmoji(String iconName) {
-  final emojiMap = {
-    'house': '🏠',
-    'user': '👤',
-    'briefcase': '💼',
-    'mail': '✉️',
-    'phone': '📞',
-    'map-pin': '📍',
-    'link': '🔗',
-    'code': '💻',
-    'graduation-cap': '🎓',
-    'trophy': '🏆',
-    'star': '⭐',
-    'settings': '⚙️',
-    'book-open': '📖',
-    'heart': '❤️',
-    'calendar': '📅',
-    'globe': '🌐',
+  final iconMap = {
+    'house': '•',
+    'user': '•',
+    'briefcase': '•',
+    'mail': '•',
+    'phone': '•',
+    'map-pin': '•',
+    'link': '•',
+    'code': '•',
+    'graduation-cap': '•',
+    'trophy': '•',
+    'star': '•',
+    'settings': '•',
+    'book-open': '•',
+    'heart': '•',
+    'calendar': '•',
+    'globe': '•',
   };
-  return emojiMap[iconName] ?? '•';
+
+  return iconMap[iconName] ?? '•';
 }
 
-// ─── Profile image loader ─────────────────────────────────────────────────────
+// ─── Profile image loader 
 Future<pw.MemoryImage?> _loadPhoto(String? src) async {
   if (src == null || src.isEmpty) return null;
   try {
@@ -130,12 +126,12 @@ Future<pw.MemoryImage?> _loadPhoto(String? src) async {
   return null;
 }
 
-// ─── Public service class ────────────────────────────────────────────────────
+// ─── Public service class 
 class PDFService {
 
   static Future<void> initializeFonts() => _loadFonts();
 
-  // ── Main PDF generator ──────────────────────────────────────────────────
+  // ── Main PDF generator 
   static Future<Uint8List> generatePDFBytes({
     required String fullName,
     required String email,
@@ -214,9 +210,7 @@ class PDFService {
         style: _ts(size: size, color: color ?? _cBlue));
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
   //  ATS v1 — Clean professional with sidebar summary
-  // ═══════════════════════════════════════════════════════════════════════════
   static void _buildATS1(
       pw.Document doc, String fullName, String email, String phone,
       String address, String linkedin, String github, String summary,
@@ -313,7 +307,7 @@ class PDFService {
                               style: _ts(size: 10, color: _cGrey700)),
                         ),
                       ]),
-                    )).toList(),
+                    )),
                     pw.SizedBox(height: 16),
                   ],
                   if (ach.isNotEmpty) ...[
@@ -339,7 +333,7 @@ class PDFService {
                             ),
                         ],
                       ),
-                    )).toList(),
+                    )),
                   ],
                 ],
               ),
@@ -376,9 +370,7 @@ class PDFService {
     ));
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
   //  Helper Widgets untuk ATS1
-  // ═══════════════════════════════════════════════════════════════════════════
   
   static pw.Widget _infoChip(String iconName, String text) {
     return pw.Row(
@@ -713,13 +705,13 @@ class PDFService {
               if (photo != null) ...[
                 pw.Container(
                   width: 100, height: 100,
-                  decoration: pw.BoxDecoration(
+                  decoration: const pw.BoxDecoration(
                     shape: pw.BoxShape.circle,
                     boxShadow: [
                       pw.BoxShadow(
                         color: _cGrey400, 
                         blurRadius: 8, 
-                        offset: const PdfPoint(0, 4),
+                        offset: PdfPoint(0, 4),
                       ),
                     ],
                   ),
@@ -898,7 +890,7 @@ class PDFService {
         pw.Container(
           padding: const pw.EdgeInsets.all(20),
           decoration: pw.BoxDecoration(
-            gradient: pw.LinearGradient(
+            gradient: const pw.LinearGradient(
               colors: [_cBlueDark, _cBlue],
               begin: pw.Alignment.centerLeft,
               end: pw.Alignment.centerRight,
@@ -1095,7 +1087,7 @@ class PDFService {
       child: pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text('⭐ ', style: _ts(size: 9, color: _cBlue)),
+          pw.Text('⭐', style: _ts(size: 9, color: _cBlue)),
           pw.Expanded(
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,

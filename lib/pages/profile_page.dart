@@ -222,6 +222,8 @@ class ProfilePage extends StatelessWidget {
             color: Colors.blue.shade400,
           ),
           cacheKey: imageUrl,
+          memCacheWidth: 110, // Best practice: optimize memory cache
+          memCacheHeight: 110,
         ),
       ),
     );
@@ -359,7 +361,7 @@ class ProfilePage extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => SafeArea(
+      builder: (bottomSheetContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -376,12 +378,12 @@ class ProfilePage extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.photo_library, color: Colors.blue),
               title: const Text('Pilih dari Galeri'),
-              onTap: () => Navigator.pop(context, false),
+              onTap: () => Navigator.pop(bottomSheetContext, false),
             ),
             ListTile(
               leading: const Icon(Icons.camera_alt, color: Colors.blue),
               title: const Text('Ambil Foto'),
-              onTap: () => Navigator.pop(context, true),
+              onTap: () => Navigator.pop(bottomSheetContext, true),
             ),
             const SizedBox(height: 8),
           ],
@@ -391,35 +393,74 @@ class ProfilePage extends StatelessWidget {
 
     if (source == null) return;
 
-    if (context.mounted) { 
-      showDialog(
+    // Best practice: Use mounted check before showing dialog
+    if (!context.mounted) return;
+    
+    // Use a unique key for the loading dialog to prevent conflicts
+    final loadingKey = UniqueKey();
+    showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: Material(
-          color: Colors.transparent,
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1565C0)),
+      builder: (dialogContext) => Material(
+        type: MaterialType.transparency,
+        child: Center(
+          key: loadingKey,
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1565C0)),
+                ),
+                SizedBox(height: 12),
+                Text(
+                  'Mengupload foto...',
+                  style: TextStyle(fontSize: 14),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
-    }
 
     try {
       final imageFile = await storageService.pickImage(fromCamera: source);
       
-      if (imageFile == null) {
-        if (context.mounted) Navigator.pop(context);
-        return;
-      }
+      // Best practice: Check mounted before closing dialog
+      if (!context.mounted) return;
+      Navigator.pop(context); // Close loading dialog
+      
+      if (imageFile == null) return;
+
+      // Show loading again for upload process
+      if (!context.mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => const Center(
+          child: Material(
+            color: Colors.transparent,
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1565C0)),
+            ),
+          ),
+        ),
+      );
 
       final url = await storageService.uploadProfilePhoto(imageFile);
 
-      if (context.mounted) Navigator.pop(context);
+      if (!context.mounted) return;
+      Navigator.pop(context); // Close upload loading
 
       if (url != null) {
         await userProvider.updateProfileImage(url);
+        // Best practice: Only evict the specific image, not all cache
         await CachedNetworkImage.evictFromCache(url);
         
         if (!context.mounted) return;
@@ -427,6 +468,7 @@ class ProfilePage extends StatelessWidget {
           const SnackBar(
             content: Text('Foto profil berhasil diperbarui!'),
             backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating, // Best practice: Better UX
           ),
         );
         
@@ -437,333 +479,341 @@ class ProfilePage extends StatelessWidget {
           const SnackBar(
             content: Text('Gagal upload foto, coba lagi.'),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
     } catch (e) {
-      if (context.mounted) Navigator.pop(context);
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading if still showing
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
-  // ==================== TASK #6: GANTI PASSWORD DENGAN KONFIRMASI ====================
-  // ==================== TASK #6: GANTI PASSWORD DENGAN KONFIRMASI ====================
-void _showChangePasswordDialog(BuildContext context) {
-  final currentPasswordController = TextEditingController();
-  final newPasswordController = TextEditingController();
-  final confirmPasswordController = TextEditingController();
-  final currentPasswordFocusNode = FocusNode();
-  final newPasswordFocusNode = FocusNode();
-  final confirmPasswordFocusNode = FocusNode();
-  
-  bool obscureCurrent = true;
-  bool obscureNew = true;
-  bool obscureConfirm = true;
-  bool _isLoading = false;
-  
-  // Error messages untuk masing-masing field
-  String? _currentPasswordError;
-  String? _newPasswordError;
-  String? _confirmPasswordError;
-  
-  showDialog(
-    context: context,
-    barrierDismissible: !_isLoading,
-    builder: (dialogContext) => StatefulBuilder(
-      builder: (context, setDialogState) {
-        // Auto focus ke field yang bermasalah
-        if (_currentPasswordError != null && !_isLoading) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            FocusScope.of(context).requestFocus(currentPasswordFocusNode);
-          });
-        } else if (_newPasswordError != null && !_isLoading) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            FocusScope.of(context).requestFocus(newPasswordFocusNode);
-          });
-        } else if (_confirmPasswordError != null && !_isLoading) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            FocusScope.of(context).requestFocus(confirmPasswordFocusNode);
-          });
-        }
-        
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Ganti Password'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Password Saat Ini
-                TextField(
-                  controller: currentPasswordController,
-                  focusNode: currentPasswordFocusNode,
-                  obscureText: obscureCurrent,
-                  enabled: !_isLoading,
-                  decoration: InputDecoration(
-                    labelText: 'Password Saat Ini',
-                    hintText: 'Masukkan password lama',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    errorText: _currentPasswordError,
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.red),
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(obscureCurrent ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                      onPressed: () => setDialogState(() => obscureCurrent = !obscureCurrent),
-                    ),
-                  ),
-                  onChanged: (_) {
-                    if (_currentPasswordError != null) {
-                      setDialogState(() => _currentPasswordError = null);
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-                
-                // Password Baru
-                TextField(
-                  controller: newPasswordController,
-                  focusNode: newPasswordFocusNode,
-                  obscureText: obscureNew,
-                  enabled: !_isLoading,
-                  decoration: InputDecoration(
-                    labelText: 'Password Baru',
-                    hintText: 'Minimal 6 karakter',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    errorText: _newPasswordError,
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.red),
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(obscureNew ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                      onPressed: () => setDialogState(() => obscureNew = !obscureNew),
-                    ),
-                  ),
-                  onChanged: (_) {
-                    if (_newPasswordError != null) {
-                      setDialogState(() => _newPasswordError = null);
-                    }
-                    // Juga reset confirm password error jika ada
-                    if (_confirmPasswordError != null) {
-                      setDialogState(() => _confirmPasswordError = null);
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-                
-                // Konfirmasi Password Baru
-                TextField(
-                  controller: confirmPasswordController,
-                  focusNode: confirmPasswordFocusNode,
-                  obscureText: obscureConfirm,
-                  enabled: !_isLoading,
-                  decoration: InputDecoration(
-                    labelText: 'Konfirmasi Password Baru',
-                    hintText: 'Masukkan ulang password baru',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    errorText: _confirmPasswordError,
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.red),
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                      onPressed: () => setDialogState(() => obscureConfirm = !obscureConfirm),
-                    ),
-                  ),
-                  onChanged: (_) {
-                    if (_confirmPasswordError != null) {
-                      setDialogState(() => _confirmPasswordError = null);
-                    }
-                  },
-                ),
-                
-                const SizedBox(height: 8),
-                Text(
-                  'Password minimal 6 karakter dan harus sama dengan konfirmasi',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: _isLoading ? null : () => Navigator.pop(dialogContext),
-              child: const Text('Batal'),
-            ),
-            ElevatedButton(
-              onPressed: _isLoading ? null : () async {
-                // Reset semua error
-                setDialogState(() {
-                  _currentPasswordError = null;
-                  _newPasswordError = null;
-                  _confirmPasswordError = null;
-                });
-                
-                final currentPassword = currentPasswordController.text.trim();
-                final newPassword = newPasswordController.text.trim();
-                final confirmPassword = confirmPasswordController.text.trim();
-                
-                bool hasError = false;
-                
-                // Validasi current password
-                if (currentPassword.isEmpty) {
-                  setDialogState(() => _currentPasswordError = 'Password saat ini tidak boleh kosong');
-                  hasError = true;
-                }
-                
-                // Validasi password baru
-                if (newPassword.isEmpty) {
-                  setDialogState(() => _newPasswordError = 'Password baru tidak boleh kosong');
-                  hasError = true;
-                } else if (newPassword.length < 6) {
-                  setDialogState(() => _newPasswordError = 'Password baru minimal 6 karakter');
-                  hasError = true;
-                }
-                
-                // Validasi konfirmasi password (TASK #6 - tampil di dalam card)
-                if (confirmPassword.isEmpty) {
-                  setDialogState(() => _confirmPasswordError = 'Konfirmasi password tidak boleh kosong');
-                  hasError = true;
-                } else if (newPassword.isNotEmpty && newPassword != confirmPassword) {
-                  setDialogState(() => _confirmPasswordError = 'Konfirmasi password tidak cocok');
-                  hasError = true;
-                }
-                
-                // Validasi password baru tidak sama dengan lama
-                if (!hasError && currentPassword.isNotEmpty && newPassword.isNotEmpty && currentPassword == newPassword) {
-                  setDialogState(() => _newPasswordError = 'Password baru harus berbeda dengan password lama');
-                  hasError = true;
-                }
-                
-                if (hasError) return;
-                
-                // Rate limit - disable tombol
-                setDialogState(() => _isLoading = true);
-                
-                try {
-                  final user = FirebaseAuth.instance.currentUser!;
-                  
-                  // Re-autentikasi dengan password lama
-                  final cred = EmailAuthProvider.credential(
-                    email: user.email!,
-                    password: currentPassword,
-                  );
-                  await user.reauthenticateWithCredential(cred);
-                  
-                  // Update password
-                  await user.updatePassword(newPassword);
-                  
-                  if (!dialogContext.mounted) return;
-                  Navigator.pop(dialogContext);
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(
-                      content: Text('Password berhasil diperbarui!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                  
-                } on FirebaseAuthException catch (e) {
-                  setDialogState(() => _isLoading = false);
-                  
-                  // Handle error dari Firebase - tampilkan di field yang sesuai
-                  switch (e.code) {
-                    case 'wrong-password':
-                      setDialogState(() => _currentPasswordError = '❌ Password saat ini salah');
-                      currentPasswordController.clear();
-                      break;
-                      
-                    case 'invalid-credential':
-                      setDialogState(() => _currentPasswordError = '❌ Password saat ini tidak valid');
-                      currentPasswordController.clear();
-                      break;
-                      
-                    case 'weak-password':
-                      setDialogState(() => _newPasswordError = 'Password terlalu lemah. Gunakan kombinasi yang lebih kuat');
-                      break;
-                      
-                    case 'requires-recent-login':
-                      // Ini tetap pakai SnackBar karena butuh aksi logout
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(
-                          content: Text('🔐 Untuk keamanan, silakan logout dan login kembali untuk mengganti password'),
-                          backgroundColor: Colors.orange,
-                          duration: Duration(seconds: 4),
-                        ),
-                      );
-                      break;
-                      
-                    case 'network-request-failed':
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(
-                          content: Text('📡 Koneksi internet bermasalah. Periksa koneksi Anda.'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      break;
-                      
-                    default:
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        SnackBar(
-                          content: Text('Terjadi kesalahan: ${e.message ?? "Silakan coba lagi"}'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                  }
-                  
-                  if (!dialogContext.mounted) return;
-                  
-                } catch (e) {
-                  setDialogState(() => _isLoading = false);
-                  if (!dialogContext.mounted) return;
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    SnackBar(
-                      content: Text('Terjadi kesalahan: ${e.toString()}'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1565C0),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Text('Simpan'),
-            ),
-          ],
-        );
-      },
-    ),
-  );
-}
+  // Best practice: Extract password validation logic to separate method
+  String? _validatePassword(String password, String fieldName) {
+    if (password.isEmpty) {
+      return '$fieldName tidak boleh kosong';
+    }
+    if (fieldName == 'Password Baru' && password.length < 6) {
+      return 'Password baru minimal 6 karakter';
+    }
+    return null;
+  }
 
-  // ==================== EDIT PROFILE DIALOG ====================
-  void _showEditProfileDialog(BuildContext context, UserProvider userProvider) {
-    final nameController = TextEditingController(text: userProvider.fullName);
-    bool _isLoading = false;
+  void _showChangePasswordDialog(BuildContext context) {
+    final currentPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    final currentPasswordFocusNode = FocusNode();
+    final newPasswordFocusNode = FocusNode();
+    final confirmPasswordFocusNode = FocusNode();
+    
+    bool obscureCurrent = true;
+    bool obscureNew = true;
+    bool obscureConfirm = true;
+    bool isLoading = false;
+    
+    String? currentPasswordError;
+    String? newPasswordError;
+    String? confirmPasswordError;
+    
+    // Best practice: Use UniqueKey to ensure proper dialog state management
+    final dialogKey = UniqueKey();
     
     showDialog(
       context: context,
-      barrierDismissible: !_isLoading,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        key: dialogKey,
+        builder: (stateContext, setDialogState) {
+          // Best practice: Auto-focus only when needed and mounted
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!stateContext.mounted) return;
+            if (currentPasswordError != null && !isLoading) {
+              FocusScope.of(stateContext).requestFocus(currentPasswordFocusNode);
+            } else if (newPasswordError != null && !isLoading) {
+              FocusScope.of(stateContext).requestFocus(newPasswordFocusNode);
+            } else if (confirmPasswordError != null && !isLoading) {
+              FocusScope.of(stateContext).requestFocus(confirmPasswordFocusNode);
+            }
+          });
+          
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text('Ganti Password'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: currentPasswordController,
+                    focusNode: currentPasswordFocusNode,
+                    obscureText: obscureCurrent,
+                    enabled: !isLoading,
+                    decoration: InputDecoration(
+                      labelText: 'Password Saat Ini',
+                      hintText: 'Masukkan password lama',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      errorText: currentPasswordError,
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Colors.red),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(obscureCurrent ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                        onPressed: () => setDialogState(() => obscureCurrent = !obscureCurrent),
+                      ),
+                    ),
+                    onChanged: (_) {
+                      if (currentPasswordError != null) {
+                        setDialogState(() => currentPasswordError = null);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  TextField(
+                    controller: newPasswordController,
+                    focusNode: newPasswordFocusNode,
+                    obscureText: obscureNew,
+                    enabled: !isLoading,
+                    decoration: InputDecoration(
+                      labelText: 'Password Baru',
+                      hintText: 'Minimal 6 karakter',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      errorText: newPasswordError,
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Colors.red),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(obscureNew ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                        onPressed: () => setDialogState(() => obscureNew = !obscureNew),
+                      ),
+                    ),
+                    onChanged: (_) {
+                      if (newPasswordError != null) {
+                        setDialogState(() => newPasswordError = null);
+                      }
+                      if (confirmPasswordError != null) {
+                        setDialogState(() => confirmPasswordError = null);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  TextField(
+                    controller: confirmPasswordController,
+                    focusNode: confirmPasswordFocusNode,
+                    obscureText: obscureConfirm,
+                    enabled: !isLoading,
+                    decoration: InputDecoration(
+                      labelText: 'Konfirmasi Password Baru',
+                      hintText: 'Masukkan ulang password baru',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      errorText: confirmPasswordError,
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Colors.red),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                        onPressed: () => setDialogState(() => obscureConfirm = !obscureConfirm),
+                      ),
+                    ),
+                    onChanged: (_) {
+                      if (confirmPasswordError != null) {
+                        setDialogState(() => confirmPasswordError = null);
+                      }
+                    },
+                  ),
+                  
+                  const SizedBox(height: 8),
+                  Text(
+                    'Password minimal 6 karakter dan harus sama dengan konfirmasi',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isLoading ? null : () => Navigator.pop(dialogContext),
+                child: const Text('Batal'),
+              ),
+              ElevatedButton(
+                onPressed: isLoading ? null : () async {
+                  // Reset errors
+                  setDialogState(() {
+                    currentPasswordError = null;
+                    newPasswordError = null;
+                    confirmPasswordError = null;
+                  });
+                  
+                  final currentPassword = currentPasswordController.text.trim();
+                  final newPassword = newPasswordController.text.trim();
+                  final confirmPassword = confirmPasswordController.text.trim();
+                  
+                  bool hasError = false;
+                  
+                  // Validate using extracted method
+                  final currentError = _validatePassword(currentPassword, 'Password Saat Ini');
+                  if (currentError != null) {
+                    setDialogState(() => currentPasswordError = currentError);
+                    hasError = true;
+                  }
+                  
+                  final newError = _validatePassword(newPassword, 'Password Baru');
+                  if (newError != null) {
+                    setDialogState(() => newPasswordError = newError);
+                    hasError = true;
+                  }
+                  
+                  if (confirmPassword.isEmpty) {
+                    setDialogState(() => confirmPasswordError = 'Konfirmasi password tidak boleh kosong');
+                    hasError = true;
+                  } else if (newPassword.isNotEmpty && newPassword != confirmPassword) {
+                    setDialogState(() => confirmPasswordError = 'Konfirmasi password tidak cocok');
+                    hasError = true;
+                  }
+                  
+                  if (!hasError && currentPassword.isNotEmpty && newPassword.isNotEmpty && currentPassword == newPassword) {
+                    setDialogState(() => newPasswordError = 'Password baru harus berbeda dengan password lama');
+                    hasError = true;
+                  }
+                  
+                  if (hasError) return;
+                  
+                  setDialogState(() => isLoading = true);
+                  
+                  try {
+                    final user = FirebaseAuth.instance.currentUser;
+                    if (user == null || user.email == null) {
+                      throw Exception('User not authenticated');
+                    }
+                    
+                    final cred = EmailAuthProvider.credential(
+                      email: user.email!,
+                      password: currentPassword,
+                    );
+                    await user.reauthenticateWithCredential(cred);
+                    await user.updatePassword(newPassword);
+                    
+                    if (!dialogContext.mounted) return;
+                    Navigator.pop(dialogContext);
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      const SnackBar(
+                        content: Text('Password berhasil diperbarui!'),
+                        backgroundColor: Colors.green,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                    
+                  } on FirebaseAuthException catch (e) {
+                    if (!dialogContext.mounted) return;
+                    setDialogState(() => isLoading = false);
+                    
+                    switch (e.code) {
+                      case 'wrong-password':
+                      case 'invalid-credential':
+                        setDialogState(() => currentPasswordError = '❌ Password saat ini salah');
+                        currentPasswordController.clear();
+                        break;
+                        
+                      case 'weak-password':
+                        setDialogState(() => newPasswordError = 'Password terlalu lemah. Gunakan kombinasi yang lebih kuat');
+                        break;
+                        
+                      case 'requires-recent-login':
+                        Navigator.pop(dialogContext);
+                        ScaffoldMessenger.of(dialogContext).showSnackBar(
+                          const SnackBar(
+                            content: Text('🔐 Untuk keamanan, silakan logout dan login kembali untuk mengganti password'),
+                            backgroundColor: Colors.orange,
+                            duration: Duration(seconds: 4),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                        break;
+                        
+                      case 'network-request-failed':
+                        ScaffoldMessenger.of(dialogContext).showSnackBar(
+                          const SnackBar(
+                            content: Text('📡 Koneksi internet bermasalah. Periksa koneksi Anda.'),
+                            backgroundColor: Colors.red,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                        break;
+                        
+                      default:
+                        ScaffoldMessenger.of(dialogContext).showSnackBar(
+                          SnackBar(
+                            content: Text('Terjadi kesalahan: ${e.message ?? "Silakan coba lagi"}'),
+                            backgroundColor: Colors.red,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                    }
+                  } catch (e) {
+                    if (!dialogContext.mounted) return;
+                    setDialogState(() => isLoading = false);
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      SnackBar(
+                        content: Text('Terjadi kesalahan: ${e.toString()}'),
+                        backgroundColor: Colors.red,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1565C0),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Simpan'),
+              ),
+            ],
+          );
+        },
+      ),
+    ).then((_) {
+      // Best practice: Clean up controllers and focus nodes
+      currentPasswordController.dispose();
+      newPasswordController.dispose();
+      confirmPasswordController.dispose();
+      currentPasswordFocusNode.dispose();
+      newPasswordFocusNode.dispose();
+      confirmPasswordFocusNode.dispose();
+    });
+  }
+
+  void _showEditProfileDialog(BuildContext context, UserProvider userProvider) {
+    final nameController = TextEditingController(text: userProvider.fullName);
+    bool isLoading = false;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -773,7 +823,7 @@ void _showChangePasswordDialog(BuildContext context) {
             children: [
               TextField(
                 controller: nameController,
-                enabled: !_isLoading,
+                enabled: !isLoading,
                 decoration: InputDecoration(
                   labelText: 'Nama Lengkap',
                   hintText: 'Masukkan nama lengkap',
@@ -790,19 +840,25 @@ void _showChangePasswordDialog(BuildContext context) {
           ),
           actions: [
             TextButton(
-              onPressed: _isLoading ? null : () => Navigator.pop(dialogContext),
+              onPressed: isLoading ? null : () => Navigator.pop(dialogContext),
               child: const Text('Batal'),
             ),
             ElevatedButton(
-              onPressed: _isLoading ? null : () async {
-                setDialogState(() => _isLoading = true);
+              onPressed: isLoading ? null : () async {
+                setDialogState(() => isLoading = true);
                 
                 final newName = nameController.text.trim();
                 if (newName.isEmpty) {
-                  setDialogState(() => _isLoading = false);
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(content: Text('Nama lengkap tidak boleh kosong'), backgroundColor: Colors.red),
-                  );
+                  if (dialogContext.mounted) {
+                    setDialogState(() => isLoading = false);
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      const SnackBar(
+                        content: Text('Nama lengkap tidak boleh kosong'),
+                        backgroundColor: Colors.red,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
                   return;
                 }
                 
@@ -812,13 +868,21 @@ void _showChangePasswordDialog(BuildContext context) {
                   if (!dialogContext.mounted) return;
                   Navigator.pop(dialogContext);
                   ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(content: Text('Profil berhasil diperbarui!'), backgroundColor: Colors.green),
+                    const SnackBar(
+                      content: Text('Profil berhasil diperbarui!'),
+                      backgroundColor: Colors.green,
+                      behavior: SnackBarBehavior.floating,
+                    ),
                   );
                 } catch (e) {
-                  setDialogState(() => _isLoading = false);
                   if (!dialogContext.mounted) return;
+                  setDialogState(() => isLoading = false);
                   ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
+                    SnackBar(
+                      content: Text('Error: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                      behavior: SnackBarBehavior.floating,
+                    ),
                   );
                 }
               },
@@ -827,7 +891,7 @@ void _showChangePasswordDialog(BuildContext context) {
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              child: _isLoading
+              child: isLoading
                   ? const SizedBox(
                       width: 20,
                       height: 20,
@@ -838,18 +902,22 @@ void _showChangePasswordDialog(BuildContext context) {
           ],
         ),
       ),
-    );
+    ).then((_) {
+      // Best practice: Clean up controller
+      nameController.dispose();
+    });
   }
 
   void _showAboutAppDialog(BuildContext context) async {
     final packageInfo = await PackageInfo.fromPlatform();
-    if(!context.mounted) return;
+    if (!context.mounted) return;
+    
     final version = packageInfo.version;
     final buildNumber = packageInfo.buildNumber;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Tentang Aplikasi'),
         content: Column(
@@ -904,7 +972,7 @@ void _showChangePasswordDialog(BuildContext context) {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             style: TextButton.styleFrom(
               backgroundColor: const Color(0xFF1565C0),
               foregroundColor: Colors.white,
@@ -925,7 +993,7 @@ void _showChangePasswordDialog(BuildContext context) {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
@@ -952,7 +1020,7 @@ void _showChangePasswordDialog(BuildContext context) {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               shape: RoundedRectangleBorder(
@@ -971,13 +1039,18 @@ void _showChangePasswordDialog(BuildContext context) {
           const SizedBox(width: 12),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
               
               try {
                 await FirebaseAuth.instance.signOut();
                 userProvider.reset();
                 cvProvider.resetAll();
-                await CachedNetworkImage.evictFromCache('*');
+                
+                // Best practice: Only evict specific profile image if exists
+                final profileImage = userProvider.profileImage;
+                if (profileImage.isNotEmpty) {
+                  await CachedNetworkImage.evictFromCache(profileImage);
+                }
                 
                 if (!context.mounted) return;
                 
@@ -992,6 +1065,7 @@ void _showChangePasswordDialog(BuildContext context) {
                   SnackBar(
                     content: Text('Error: ${e.toString()}'),
                     backgroundColor: Colors.red,
+                    behavior: SnackBarBehavior.floating,
                   ),
                 );
               }

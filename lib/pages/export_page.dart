@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
-import 'dart:io';
-import 'dart:typed_data';
 import '../state/cv_provider.dart';
 import '../services/pdf_service.dart';
 
