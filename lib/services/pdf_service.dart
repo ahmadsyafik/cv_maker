@@ -16,21 +16,21 @@ import '../models/skill.dart';
 import '../state/cv_provider.dart';
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
-const _cBlue       = PdfColor.fromInt(0xFF1565C0);
-const _cBlueDark   = PdfColor.fromInt(0xFF0D47A1);
-const _cBlueLight  = PdfColor.fromInt(0xFFE3F2FD);
-const _cNavy       = PdfColor.fromInt(0xFF1B2B4B);
+const _cBlue = PdfColor.fromInt(0xFF1565C0);
+const _cBlueDark = PdfColor.fromInt(0xFF0D47A1);
+const _cBlueLight = PdfColor.fromInt(0xFFE3F2FD);
+const _cNavy = PdfColor.fromInt(0xFF1B2B4B);
 const _cNavyAccent = PdfColor.fromInt(0xFF2E6DA4);
-const _cWhite      = PdfColors.white;
-const _cBlack      = PdfColor.fromInt(0xFF1A1A1A);
-const _cGrey800    = PdfColor.fromInt(0xFF333333);
-const _cGrey700    = PdfColor.fromInt(0xFF555555);
-const _cGrey600    = PdfColor.fromInt(0xFF777777);
-const _cGrey400    = PdfColor.fromInt(0xFFBDBDBD);
-const _cGrey300    = PdfColor.fromInt(0xFFE0E0E0);
-const _cGrey100    = PdfColor.fromInt(0xFFF5F5F5);
+const _cWhite = PdfColors.white;
+const _cBlack = PdfColor.fromInt(0xFF1A1A1A);
+const _cGrey800 = PdfColor.fromInt(0xFF333333);
+const _cGrey700 = PdfColor.fromInt(0xFF555555);
+const _cGrey600 = PdfColor.fromInt(0xFF777777);
+const _cGrey400 = PdfColor.fromInt(0xFFBDBDBD);
+const _cGrey300 = PdfColor.fromInt(0xFFE0E0E0);
+const _cGrey100 = PdfColor.fromInt(0xFFF5F5F5);
 
-// ─── Font singletons 
+// ─── Font singletons
 late pw.Font _regular;
 late pw.Font _bold;
 late pw.Font _italic;
@@ -43,17 +43,17 @@ Future<void> _loadFonts() async {
     final b = await rootBundle.load('assets/fonts/Roboto-Bold.ttf');
     final i = await rootBundle.load('assets/fonts/Roboto-Italic.ttf');
     _regular = pw.Font.ttf(r.buffer.asByteData());
-    _bold    = pw.Font.ttf(b.buffer.asByteData());
-    _italic  = pw.Font.ttf(i.buffer.asByteData());
+    _bold = pw.Font.ttf(b.buffer.asByteData());
+    _italic = pw.Font.ttf(i.buffer.asByteData());
   } catch (_) {
     _regular = pw.Font.helvetica();
-    _bold    = pw.Font.helveticaBold();
-    _italic  = pw.Font.helveticaOblique();
+    _bold = pw.Font.helveticaBold();
+    _italic = pw.Font.helveticaOblique();
   }
   _fontsReady = true;
 }
 
-// ─── Text style helper 
+// ─── Text style helper
 pw.TextStyle _ts({
   double size = 10,
   bool bold = false,
@@ -63,7 +63,11 @@ pw.TextStyle _ts({
   double? lineH,
 }) {
   return pw.TextStyle(
-    font: bold ? _bold : italic ? _italic : _regular,
+    font: bold
+        ? _bold
+        : italic
+            ? _italic
+            : _regular,
     fontSize: size,
     color: color,
     letterSpacing: spacing,
@@ -81,31 +85,9 @@ PdfColor _withOpacity(PdfColor color, double opacity) {
   );
 }
 
-// Helper untuk mendapatkan emoji dari nama icon
-String _getIconEmoji(String iconName) {
-  final iconMap = {
-    'house': '•',
-    'user': '•',
-    'briefcase': '•',
-    'mail': '•',
-    'phone': '•',
-    'map-pin': '•',
-    'link': '•',
-    'code': '•',
-    'graduation-cap': '•',
-    'trophy': '•',
-    'star': '•',
-    'settings': '•',
-    'book-open': '•',
-    'heart': '•',
-    'calendar': '•',
-    'globe': '•',
-  };
+String _getIconEmoji(String iconName) => '';
 
-  return iconMap[iconName] ?? '•';
-}
-
-// ─── Profile image loader 
+// ─── Profile image loader
 Future<pw.MemoryImage?> _loadPhoto(String? src) async {
   if (src == null || src.isEmpty) return null;
   try {
@@ -126,12 +108,11 @@ Future<pw.MemoryImage?> _loadPhoto(String? src) async {
   return null;
 }
 
-// ─── Public service class 
+// ─── Public service class
 class PDFService {
-
   static Future<void> initializeFonts() => _loadFonts();
 
-  // ── Main PDF generator 
+  // ── Main PDF generator
   static Future<Uint8List> generatePDFBytes({
     required String fullName,
     required String email,
@@ -149,26 +130,79 @@ class PDFService {
     String? profileImage,
   }) async {
     await _loadFonts();
-    final theme = pw.ThemeData.withFont(base: _regular, bold: _bold, italic: _italic);
-    final doc   = pw.Document(theme: theme);
+    final theme =
+        pw.ThemeData.withFont(base: _regular, bold: _bold, italic: _italic);
+    final doc = pw.Document(theme: theme);
     final photo = await _loadPhoto(profileImage);
 
     switch (template) {
       case CVTemplate.ats:
-        _buildATS1(doc, fullName, email, phone, address, linkedin, github,
-            summary, educations, experiences, skills, achievements, publications, photo);
+        _buildATS1(
+            doc,
+            fullName,
+            email,
+            phone,
+            address,
+            linkedin,
+            github,
+            summary,
+            educations,
+            experiences,
+            skills,
+            achievements,
+            publications,
+            photo);
         break;
       case CVTemplate.ats2:
-        _buildATS2(doc, fullName, email, phone, address, linkedin, github,
-            summary, educations, experiences, skills, achievements, publications, photo);
+        _buildATS2(
+            doc,
+            fullName,
+            email,
+            phone,
+            address,
+            linkedin,
+            github,
+            summary,
+            educations,
+            experiences,
+            skills,
+            achievements,
+            publications,
+            photo);
         break;
       case CVTemplate.creative:
-        _buildCreative1(doc, fullName, email, phone, address, linkedin, github,
-            summary, educations, experiences, skills, achievements, publications, photo);
+        _buildCreative1(
+            doc,
+            fullName,
+            email,
+            phone,
+            address,
+            linkedin,
+            github,
+            summary,
+            educations,
+            experiences,
+            skills,
+            achievements,
+            publications,
+            photo);
         break;
       case CVTemplate.creative2:
-        _buildCreative2(doc, fullName, email, phone, address, linkedin, github,
-            summary, educations, experiences, skills, achievements, publications, photo);
+        _buildCreative2(
+            doc,
+            fullName,
+            email,
+            phone,
+            address,
+            linkedin,
+            github,
+            summary,
+            educations,
+            experiences,
+            skills,
+            achievements,
+            publications,
+            photo);
         break;
     }
 
@@ -192,32 +226,51 @@ class PDFService {
     String? profileImage,
   }) async {
     final bytes = await generatePDFBytes(
-      fullName: fullName, email: email, phone: phone, address: address,
-      linkedin: linkedin, github: github, summary: summary,
-      educations: educations, experiences: experiences, skills: skills,
-      achievements: achievements, publications: publications,
-      template: template, profileImage: profileImage,
+      fullName: fullName,
+      email: email,
+      phone: phone,
+      address: address,
+      linkedin: linkedin,
+      github: github,
+      summary: summary,
+      educations: educations,
+      experiences: experiences,
+      skills: skills,
+      achievements: achievements,
+      publications: publications,
+      template: template,
+      profileImage: profileImage,
     );
-    final dir  = await getTemporaryDirectory();
-    final file = File('${dir.path}/cv_${DateTime.now().millisecondsSinceEpoch}.pdf');
+    final dir = await getTemporaryDirectory();
+    final file =
+        File('${dir.path}/cv_${DateTime.now().millisecondsSinceEpoch}.pdf');
     await file.writeAsBytes(bytes);
     return file;
   }
 
   // Helper untuk menampilkan icon
-  static pw.Widget _buildIcon(String iconName, {double size = 10, PdfColor? color}) {
-    return pw.Text(_getIconEmoji(iconName), 
+  static pw.Widget _buildIcon(String iconName,
+      {double size = 10, PdfColor? color}) {
+    return pw.Text(_getIconEmoji(iconName),
         style: _ts(size: size, color: color ?? _cBlue));
   }
 
   //  ATS v1 — Clean professional with sidebar summary
   static void _buildATS1(
-      pw.Document doc, String fullName, String email, String phone,
-      String address, String linkedin, String github, String summary,
-      List<Education> edu, List<Experience> exp,
-      List<Skill> skills, List<Achievement> ach,
-      List<Publication> pub, pw.MemoryImage? photo) {
-
+      pw.Document doc,
+      String fullName,
+      String email,
+      String phone,
+      String address,
+      String linkedin,
+      String github,
+      String summary,
+      List<Education> edu,
+      List<Experience> exp,
+      List<Skill> skills,
+      List<Achievement> ach,
+      List<Publication> pub,
+      pw.MemoryImage? photo) {
     doc.addPage(pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.fromLTRB(40, 35, 40, 35),
@@ -229,12 +282,14 @@ class PDFService {
             children: [
               if (photo != null) ...[
                 pw.Container(
-                  width: 85, height: 85,
+                  width: 85,
+                  height: 85,
                   decoration: pw.BoxDecoration(
                     shape: pw.BoxShape.circle,
                     border: pw.Border.all(color: _cBlue, width: 2),
                   ),
-                  child: pw.ClipOval(child: pw.Image(photo, fit: pw.BoxFit.cover)),
+                  child:
+                      pw.ClipOval(child: pw.Image(photo, fit: pw.BoxFit.cover)),
                 ),
                 pw.SizedBox(width: 20),
               ],
@@ -295,52 +350,58 @@ class PDFService {
                   if (skills.isNotEmpty) ...[
                     _sectionHeader('CORE SKILLS', 'settings'),
                     ...skills.take(8).map((s) => pw.Padding(
-                      padding: const pw.EdgeInsets.only(bottom: 6),
-                      child: pw.Row(children: [
-                        pw.Container(
-                          width: 4, height: 4,
-                          margin: const pw.EdgeInsets.only(right: 8),
-                          decoration: const pw.BoxDecoration(shape: pw.BoxShape.circle, color: _cBlue),
-                        ),
-                        pw.Expanded(
-                          child: pw.Text(s.name,
-                              style: _ts(size: 10, color: _cGrey700)),
-                        ),
-                      ]),
-                    )),
+                          padding: const pw.EdgeInsets.only(bottom: 6),
+                          child: pw.Row(children: [
+                            pw.Container(
+                              width: 4,
+                              height: 4,
+                              margin: const pw.EdgeInsets.only(right: 8),
+                              decoration: const pw.BoxDecoration(
+                                  shape: pw.BoxShape.circle, color: _cBlue),
+                            ),
+                            pw.Expanded(
+                              child: pw.Text(s.name,
+                                  style: _ts(size: 10, color: _cGrey700)),
+                            ),
+                          ]),
+                        )),
                     pw.SizedBox(height: 16),
                   ],
                   if (ach.isNotEmpty) ...[
                     _sectionHeader('ACHIEVEMENTS', 'trophy'),
                     ...ach.take(3).map((a) => pw.Container(
-                      margin: const pw.EdgeInsets.only(bottom: 10),
-                      child: pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.start,
-                        children: [
-                          pw.Row(children: [
-                            _buildIcon('trophy', size: 10),
-                            pw.SizedBox(width: 4),
-                            pw.Expanded(
-                              child: pw.Text(a.title,
-                                  style: _ts(size: 10, bold: true, color: _cBlueDark)),
-                            ),
-                          ]),
-                          if (a.description.isNotEmpty)
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.only(left: 14, top: 2),
-                              child: pw.Text(a.description,
-                                  style: _ts(size: 9, color: _cGrey600)),
-                            ),
-                        ],
-                      ),
-                    )),
+                          margin: const pw.EdgeInsets.only(bottom: 10),
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              pw.Row(children: [
+                                _buildIcon('trophy', size: 10),
+                                pw.SizedBox(width: 4),
+                                pw.Expanded(
+                                  child: pw.Text(a.title,
+                                      style: _ts(
+                                          size: 10,
+                                          bold: true,
+                                          color: _cBlueDark)),
+                                ),
+                              ]),
+                              if (a.description.isNotEmpty)
+                                pw.Padding(
+                                  padding: const pw.EdgeInsets.only(
+                                      left: 14, top: 2),
+                                  child: pw.Text(a.description,
+                                      style: _ts(size: 9, color: _cGrey600)),
+                                ),
+                            ],
+                          ),
+                        )),
                   ],
                 ],
               ),
             ),
-            
+
             pw.SizedBox(width: 25),
-            
+
             // Kolom kanan (65%) - Experience & Education
             pw.Expanded(
               flex: 65,
@@ -371,7 +432,7 @@ class PDFService {
   }
 
   //  Helper Widgets untuk ATS1
-  
+
   static pw.Widget _infoChip(String iconName, String text) {
     return pw.Row(
       mainAxisSize: pw.MainAxisSize.min,
@@ -392,7 +453,8 @@ class PDFService {
             _buildIcon(iconName, size: 10),
             pw.SizedBox(width: 6),
             pw.Text(title,
-                style: _ts(size: 11, bold: true, color: _cBlueDark, spacing: 0.8)),
+                style:
+                    _ts(size: 11, bold: true, color: _cBlueDark, spacing: 0.8)),
           ],
         ),
         pw.SizedBox(height: 6),
@@ -460,8 +522,7 @@ class PDFService {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text(p.title,
-              style: _ts(size: 10.5, bold: true, color: _cBlack)),
+          pw.Text(p.title, style: _ts(size: 10.5, bold: true, color: _cBlack)),
           if (p.journal.isNotEmpty || p.year.isNotEmpty)
             pw.Text([p.journal, p.year].where((s) => s.isNotEmpty).join(' · '),
                 style: _ts(size: 9.5, italic: true, color: _cGrey600)),
@@ -470,16 +531,22 @@ class PDFService {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
   //  ATS v2 — Modern two-column with colored sidebar
-  // ═══════════════════════════════════════════════════════════════════════════
   static void _buildATS2(
-      pw.Document doc, String fullName, String email, String phone,
-      String address, String linkedin, String github, String summary,
-      List<Education> edu, List<Experience> exp,
-      List<Skill> skills, List<Achievement> ach,
-      List<Publication> pub, pw.MemoryImage? photo) {
-
+      pw.Document doc,
+      String fullName,
+      String email,
+      String phone,
+      String address,
+      String linkedin,
+      String github,
+      String summary,
+      List<Education> edu,
+      List<Experience> exp,
+      List<Skill> skills,
+      List<Achievement> ach,
+      List<Publication> pub,
+      pw.MemoryImage? photo) {
     doc.addPage(pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
       margin: pw.EdgeInsets.zero,
@@ -498,12 +565,14 @@ class PDFService {
                   if (photo != null) ...[
                     pw.Center(
                       child: pw.Container(
-                        width: 80, height: 80,
+                        width: 80,
+                        height: 80,
                         decoration: pw.BoxDecoration(
                           shape: pw.BoxShape.circle,
                           border: pw.Border.all(color: _cWhite, width: 2),
                         ),
-                        child: pw.ClipOval(child: pw.Image(photo, fit: pw.BoxFit.cover)),
+                        child: pw.ClipOval(
+                            child: pw.Image(photo, fit: pw.BoxFit.cover)),
                       ),
                     ),
                     pw.SizedBox(height: 15),
@@ -521,16 +590,18 @@ class PDFService {
                   ]),
                   if (skills.isNotEmpty) ...[
                     pw.SizedBox(height: 15),
-                    _sidebarSection('SKILLS', skills.take(6).map((s) => s.name).toList()),
+                    _sidebarSection(
+                        'SKILLS', skills.take(6).map((s) => s.name).toList()),
                   ],
                   if (ach.isNotEmpty) ...[
                     pw.SizedBox(height: 15),
-                    _sidebarSection('HONORS', ach.take(3).map((a) => a.title).toList()),
+                    _sidebarSection(
+                        'ACHIEVMENTS', ach.take(3).map((a) => a.title).toList()),
                   ],
                 ],
               ),
             ),
-            
+
             // Konten kanan
             pw.Expanded(
               child: pw.Container(
@@ -543,33 +614,28 @@ class PDFService {
                     pw.SizedBox(height: 4),
                     pw.Container(width: 45, height: 2, color: _cNavyAccent),
                     pw.SizedBox(height: 15),
-                    
                     if (summary.isNotEmpty) ...[
                       pw.Text(summary,
                           style: _ts(size: 10, color: _cGrey700, lineH: 1.5)),
                       pw.SizedBox(height: 20),
                     ],
-                    
                     if (exp.isNotEmpty) ...[
-                      _rightSectionTitle('Professional Experience', 'briefcase'),
+                      _rightSectionTitle(
+                          'Professional Experience', 'briefcase'),
                       ...exp.take(2).map((e) => _rightExperienceItem(e)),
                       pw.SizedBox(height: 15),
                     ],
-                    
                     if (edu.isNotEmpty) ...[
                       _rightSectionTitle('Education', 'graduation-cap'),
                       ...edu.take(1).map((e) => _rightEducationItem(e)),
                     ],
-                    
                     if (linkedin.isNotEmpty || github.isNotEmpty) ...[
                       pw.SizedBox(height: 15),
                       pw.Wrap(
                         spacing: 15,
                         children: [
-                          if (linkedin.isNotEmpty) 
-                            _infoChip('link', linkedin),
-                          if (github.isNotEmpty) 
-                            _infoChip('code', github),
+                          if (linkedin.isNotEmpty) _infoChip('link', linkedin),
+                          if (github.isNotEmpty) _infoChip('code', github),
                         ],
                       ),
                     ],
@@ -632,8 +698,7 @@ class PDFService {
           children: [
             _buildIcon(iconName, size: 10),
             pw.SizedBox(width: 6),
-            pw.Text(title,
-                style: _ts(size: 12, bold: true, color: _cNavy)),
+            pw.Text(title, style: _ts(size: 12, bold: true, color: _cNavy)),
           ],
         ),
         pw.SizedBox(height: 5),
@@ -684,16 +749,22 @@ class PDFService {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
   //  Creative v1 — Minimalist elegant
-  // ═══════════════════════════════════════════════════════════════════════════
   static void _buildCreative1(
-      pw.Document doc, String fullName, String email, String phone,
-      String address, String linkedin, String github, String summary,
-      List<Education> edu, List<Experience> exp,
-      List<Skill> skills, List<Achievement> ach,
-      List<Publication> pub, pw.MemoryImage? photo) {
-
+      pw.Document doc,
+      String fullName,
+      String email,
+      String phone,
+      String address,
+      String linkedin,
+      String github,
+      String summary,
+      List<Education> edu,
+      List<Experience> exp,
+      List<Skill> skills,
+      List<Achievement> ach,
+      List<Publication> pub,
+      pw.MemoryImage? photo) {
     doc.addPage(pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.all(35),
@@ -704,23 +775,26 @@ class PDFService {
             children: [
               if (photo != null) ...[
                 pw.Container(
-                  width: 100, height: 100,
+                  width: 100,
+                  height: 100,
                   decoration: const pw.BoxDecoration(
                     shape: pw.BoxShape.circle,
                     boxShadow: [
                       pw.BoxShadow(
-                        color: _cGrey400, 
-                        blurRadius: 8, 
+                        color: _cGrey400,
+                        blurRadius: 8,
                         offset: PdfPoint(0, 4),
                       ),
                     ],
                   ),
-                  child: pw.ClipOval(child: pw.Image(photo, fit: pw.BoxFit.cover)),
+                  child:
+                      pw.ClipOval(child: pw.Image(photo, fit: pw.BoxFit.cover)),
                 ),
                 pw.SizedBox(height: 15),
               ],
               pw.Text(fullName,
-                  style: _ts(size: 26, bold: true, color: _cBlueDark, spacing: 1)),
+                  style:
+                      _ts(size: 26, bold: true, color: _cBlueDark, spacing: 1)),
               pw.SizedBox(height: 5),
               pw.Container(width: 60, height: 2, color: _cBlue),
               pw.SizedBox(height: 12),
@@ -738,7 +812,7 @@ class PDFService {
             ],
           ),
         ),
-        
+
         if (summary.isNotEmpty) ...[
           _creativeSection('About Me', 'user', [
             pw.Container(
@@ -749,7 +823,7 @@ class PDFService {
           ]),
           pw.SizedBox(height: 20),
         ],
-        
+
         // 2 column untuk skills, experience, education
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -759,11 +833,21 @@ class PDFService {
               child: pw.Column(
                 children: [
                   if (skills.isNotEmpty)
-                    _creativeSection('Core Competencies', 'settings', 
-                      skills.take(6).map((s) => _creativeBullet(s.name)).toList()),
+                    _creativeSection(
+                        'Core Skills',
+                        'settings',
+                        skills
+                            .take(6)
+                            .map((s) => _creativeBullet(s.name))
+                            .toList()),
                   if (ach.isNotEmpty)
-                    _creativeSection('Key Achievements', 'trophy',
-                      ach.take(3).map((a) => _creativeBullet(a.title)).toList()),
+                    _creativeSection(
+                        'Achievements',
+                        'trophy',
+                        ach
+                            .take(3)
+                            .map((a) => _creativeBullet(a.title))
+                            .toList()),
                 ],
               ),
             ),
@@ -773,11 +857,16 @@ class PDFService {
               child: pw.Column(
                 children: [
                   if (exp.isNotEmpty)
-                    _creativeSection('Experience', 'briefcase',
-                      exp.take(2).map((e) => _creativeExperience(e)).toList()),
+                    _creativeSection(
+                        'Experience',
+                        'briefcase',
+                        exp
+                            .take(2)
+                            .map((e) => _creativeExperience(e))
+                            .toList()),
                   if (edu.isNotEmpty)
                     _creativeSection('Education', 'graduation-cap',
-                      edu.take(1).map((e) => _creativeEducation(e)).toList()),
+                        edu.take(1).map((e) => _creativeEducation(e)).toList()),
                 ],
               ),
             ),
@@ -798,7 +887,8 @@ class PDFService {
     );
   }
 
-  static pw.Widget _creativeSection(String title, String iconName, List<pw.Widget> children) {
+  static pw.Widget _creativeSection(
+      String title, String iconName, List<pw.Widget> children) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -806,8 +896,7 @@ class PDFService {
           children: [
             _buildIcon(iconName, size: 10),
             pw.SizedBox(width: 6),
-            pw.Text(title,
-                style: _ts(size: 12, bold: true, color: _cBlueDark)),
+            pw.Text(title, style: _ts(size: 12, bold: true, color: _cBlueDark)),
           ],
         ),
         pw.SizedBox(height: 8),
@@ -825,10 +914,15 @@ class PDFService {
       child: pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text('▹ ', style: _ts(size: 10, color: _cBlue)),
+          pw.Text(
+            '• ',
+            style: _ts(size: 10, color: _cBlue),
+          ),
           pw.Expanded(
-            child: pw.Text(text,
-                style: _ts(size: 10, color: _cGrey700)),
+            child: pw.Text(
+              text,
+              style: _ts(size: 10, color: _cGrey700),
+            ),
           ),
         ],
       ),
@@ -841,8 +935,7 @@ class PDFService {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text(e.position,
-              style: _ts(size: 11, bold: true, color: _cBlack)),
+          pw.Text(e.position, style: _ts(size: 11, bold: true, color: _cBlack)),
           pw.Text(e.organization,
               style: _ts(size: 9.5, italic: true, color: _cBlue)),
           pw.Text('${e.startYear} - ${e.endYear}',
@@ -861,8 +954,7 @@ class PDFService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text(e.university,
-            style: _ts(size: 11, bold: true, color: _cBlack)),
+        pw.Text(e.university, style: _ts(size: 11, bold: true, color: _cBlack)),
         pw.Text(e.major, style: _ts(size: 10, color: _cGrey700)),
         pw.Text('${e.startYear} - ${e.endYear}',
             style: _ts(size: 9, color: _cGrey600)),
@@ -872,16 +964,22 @@ class PDFService {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
   //  Creative v2 — Colorful and modern
-  // ═══════════════════════════════════════════════════════════════════════════
   static void _buildCreative2(
-      pw.Document doc, String fullName, String email, String phone,
-      String address, String linkedin, String github, String summary,
-      List<Education> edu, List<Experience> exp,
-      List<Skill> skills, List<Achievement> ach,
-      List<Publication> pub, pw.MemoryImage? photo) {
-
+      pw.Document doc,
+      String fullName,
+      String email,
+      String phone,
+      String address,
+      String linkedin,
+      String github,
+      String summary,
+      List<Education> edu,
+      List<Experience> exp,
+      List<Skill> skills,
+      List<Achievement> ach,
+      List<Publication> pub,
+      pw.MemoryImage? photo) {
     doc.addPage(pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.all(30),
@@ -901,12 +999,14 @@ class PDFService {
             children: [
               if (photo != null) ...[
                 pw.Container(
-                  width: 70, height: 70,
+                  width: 70,
+                  height: 70,
                   decoration: const pw.BoxDecoration(
                     shape: pw.BoxShape.circle,
                     color: _cWhite,
                   ),
-                  child: pw.ClipOval(child: pw.Image(photo, fit: pw.BoxFit.cover)),
+                  child:
+                      pw.ClipOval(child: pw.Image(photo, fit: pw.BoxFit.cover)),
                 ),
                 pw.SizedBox(width: 15),
               ],
@@ -918,7 +1018,8 @@ class PDFService {
                         style: _ts(size: 22, bold: true, color: _cWhite)),
                     pw.SizedBox(height: 5),
                     pw.Text(summary.isNotEmpty ? summary.split('.').first : '',
-                        style: _ts(size: 10, color: _withOpacity(_cWhite, 0.9))),
+                        style:
+                            _ts(size: 10, color: _withOpacity(_cWhite, 0.9))),
                   ],
                 ),
               ),
@@ -926,7 +1027,7 @@ class PDFService {
           ),
         ),
         pw.SizedBox(height: 20),
-        
+
         // Contact info bar
         pw.Container(
           padding: const pw.EdgeInsets.symmetric(vertical: 10, horizontal: 15),
@@ -948,7 +1049,7 @@ class PDFService {
           ),
         ),
         pw.SizedBox(height: 20),
-        
+
         // Main content 2 columns
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -959,11 +1060,11 @@ class PDFService {
                 children: [
                   if (exp.isNotEmpty) ...[
                     _modernSection('briefcase', 'Work Experience',
-                      exp.take(2).map((e) => _modernExperience(e)).toList()),
+                        exp.take(2).map((e) => _modernExperience(e)).toList()),
                   ],
                   if (skills.isNotEmpty) ...[
                     _modernSection('settings', 'Skills',
-                      [_modernSkillTags(skills.take(8).toList())]),
+                        [_modernSkillTags(skills.take(8).toList())]),
                   ],
                 ],
               ),
@@ -975,11 +1076,11 @@ class PDFService {
                 children: [
                   if (edu.isNotEmpty) ...[
                     _modernSection('graduation-cap', 'Education',
-                      edu.take(2).map((e) => _modernEducation(e)).toList()),
+                        edu.take(2).map((e) => _modernEducation(e)).toList()),
                   ],
                   if (ach.isNotEmpty) ...[
                     _modernSection('trophy', 'Awards',
-                      ach.take(3).map((a) => _modernAchievement(a)).toList()),
+                        ach.take(3).map((a) => _modernAchievement(a)).toList()),
                   ],
                 ],
               ),
@@ -1001,7 +1102,8 @@ class PDFService {
     );
   }
 
-  static pw.Widget _modernSection(String iconName, String title, List<pw.Widget> children) {
+  static pw.Widget _modernSection(
+      String iconName, String title, List<pw.Widget> children) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -1009,8 +1111,7 @@ class PDFService {
           children: [
             _buildIcon(iconName, size: 10),
             pw.SizedBox(width: 6),
-            pw.Text(title,
-                style: _ts(size: 12, bold: true, color: _cBlueDark)),
+            pw.Text(title, style: _ts(size: 12, bold: true, color: _cBlueDark)),
           ],
         ),
         pw.SizedBox(height: 8),
@@ -1028,13 +1129,11 @@ class PDFService {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text(e.position,
-              style: _ts(size: 11, bold: true, color: _cBlack)),
+          pw.Text(e.position, style: _ts(size: 11, bold: true, color: _cBlack)),
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text(e.organization,
-                  style: _ts(size: 9.5, color: _cBlue)),
+              pw.Text(e.organization, style: _ts(size: 9.5, color: _cBlue)),
               pw.Text('${e.startYear} - ${e.endYear}',
                   style: _ts(size: 9, color: _cGrey600)),
             ],
@@ -1053,15 +1152,17 @@ class PDFService {
     return pw.Wrap(
       spacing: 8,
       runSpacing: 6,
-      children: skills.map((s) => pw.Container(
-        padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: pw.BoxDecoration(
-          color: _cBlueLight,
-          borderRadius: pw.BorderRadius.circular(15),
-        ),
-        child: pw.Text(s.name,
-            style: _ts(size: 9, color: _cBlueDark)),
-      )).toList(),
+      children: skills
+          .map((s) => pw.Container(
+                padding:
+                    const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: pw.BoxDecoration(
+                  color: _cBlueLight,
+                  borderRadius: pw.BorderRadius.circular(15),
+                ),
+                child: pw.Text(s.name, style: _ts(size: 9, color: _cBlueDark)),
+              ))
+          .toList(),
     );
   }
 
@@ -1087,16 +1188,34 @@ class PDFService {
       child: pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text('⭐', style: _ts(size: 9, color: _cBlue)),
+          pw.Text(
+            '• ',
+            style: _ts(size: 10, color: _cBlue),
+          ),
+          pw.SizedBox(width: 4),
           pw.Expanded(
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Text(a.title,
-                    style: _ts(size: 10, bold: true, color: _cBlack)),
+                pw.Text(
+                  a.title,
+                  style: _ts(
+                    size: 10,
+                    bold: true,
+                    color: _cBlack,
+                  ),
+                ),
                 if (a.description.isNotEmpty)
-                  pw.Text(a.description,
-                      style: _ts(size: 9, color: _cGrey600)),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.only(top: 2),
+                    child: pw.Text(
+                      a.description,
+                      style: _ts(
+                        size: 9,
+                        color: _cGrey600,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
