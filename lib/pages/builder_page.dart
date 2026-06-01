@@ -56,12 +56,57 @@ Widget _primaryButton(String label, VoidCallback onPressed) => SizedBox(
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
         child: Text(label,
-            style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600)),
+            style:
+                GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600)),
       ),
     );
+
+Future<bool> showDeleteConfirmation(BuildContext context) async {
+  return await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'Konfirmasi Hapus',
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          content: Text(
+            'Apakah Anda yakin ingin menghapus data ini?',
+            style: GoogleFonts.poppins(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(
+                'Batal',
+                style: GoogleFonts.poppins(),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+              ),
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(
+                'Hapus',
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ) ??
+      false;
+}
 
 // ─── Year Picker Field ────────────────────────────────────────────────────────
 class _YearPickerField extends StatefulWidget {
@@ -96,7 +141,7 @@ class _YearPickerFieldState extends State<_YearPickerField> {
             builder: (context, setDialogState) {
               return YearPicker(
                 firstDate: DateTime(1950),
-                lastDate: DateTime(currentYear + 5),
+                lastDate: DateTime(currentYear),
                 selectedDate: DateTime(selectedYear),
                 onChanged: (date) {
                   setDialogState(() => selectedYear = date.year);
@@ -175,7 +220,9 @@ class _BuilderPageState extends State<BuilderPage>
         centerTitle: true,
         title: Text('Buat CV',
             style: GoogleFonts.poppins(
-                fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.white)),
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -184,7 +231,8 @@ class _BuilderPageState extends State<BuilderPage>
           indicatorWeight: 3,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white60,
-          labelStyle: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600),
+          labelStyle:
+              GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600),
           unselectedLabelStyle: GoogleFonts.poppins(fontSize: 13),
           tabs: const [
             Tab(text: 'Data Diri'),
@@ -210,7 +258,7 @@ class _BuilderPageState extends State<BuilderPage>
               ),
             );
           }
-          
+
           return TabBarView(
             controller: _tabController,
             children: const [
@@ -291,50 +339,53 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
   }
 
   Future<void> _pickImage() async {
-  final storageService = StorageService();
+    final storageService = StorageService();
 
-  final imageFile = await storageService.pickImage(fromCamera: false);
+    final imageFile = await storageService.pickImage(fromCamera: false);
 
-  if (!mounted) return;
-  if (imageFile == null) return;
+    if (!mounted) return;
+    if (imageFile == null) return;
 
-  final messenger = ScaffoldMessenger.of(context);
-  final cvProvider = context.read<CVProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final cvProvider = context.read<CVProvider>();
 
-  setState(() => _isUploadingPhoto = true);
-
-  messenger.showSnackBar(
-    const SnackBar(content: Text('Mengupload foto...')),
-  );
-
-  final url = await storageService.uploadCVPhoto(imageFile);
-
-  if (!mounted) return;
-
-  setState(() => _isUploadingPhoto = false);
-
-  if (url != null) {
-    cvProvider.updateCVPhoto(url);
+    setState(() => _isUploadingPhoto = true);
 
     messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Foto berhasil diupload!'),
-        backgroundColor: Colors.green,
-      ),
+      const SnackBar(content: Text('Mengupload foto...')),
     );
-  } else {
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Gagal upload foto, coba lagi.'),
-        backgroundColor: Colors.red,
-      ),
-    );
+
+    final url = await storageService.uploadCVPhoto(imageFile);
+
+    if (!mounted) return;
+
+    setState(() => _isUploadingPhoto = false);
+
+    if (url != null) {
+      cvProvider.updateCVPhoto(url);
+
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Foto berhasil diupload!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Gagal upload foto, coba lagi.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
-}
 
   String? _validateUrl(String? v) {
     if (v == null || v.isEmpty) return null;
-    if (!v.startsWith('http://') && !v.startsWith('https://') && !v.startsWith('linkedin.com') && !v.startsWith('github.com')) {
+    if (!v.startsWith('http://') &&
+        !v.startsWith('https://') &&
+        !v.startsWith('linkedin.com') &&
+        !v.startsWith('github.com')) {
       return 'Format URL tidak valid (contoh: https://linkedin.com/in/nama)';
     }
     return null;
@@ -351,8 +402,8 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
             github: _githubController.text,
             summary: _summaryController.text,
           );
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Data diri berhasil disimpan')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data diri berhasil disimpan')));
     }
   }
 
@@ -410,9 +461,26 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
             TextFormField(
               controller: _nameController,
               style: GoogleFonts.poppins(fontSize: 14),
-              decoration: _inputDeco('Nama Lengkap', prefix: Icons.person_outline),
-              validator: (v) =>
-                  (v == null || v.isEmpty) ? 'Nama lengkap wajib diisi' : null,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(
+                  RegExp(r'[a-zA-Z\s]'),
+                ),
+              ],
+              decoration: _inputDeco(
+                'Nama Lengkap',
+                prefix: Icons.person_outline,
+              ),
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) {
+                  return 'Nama lengkap wajib diisi';
+                }
+
+                if (v.trim().length < 3) {
+                  return 'Nama minimal 3 karakter';
+                }
+
+                return null;
+              },
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -422,7 +490,11 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
               decoration: _inputDeco('Email', prefix: Icons.email_outlined),
               validator: (v) {
                 if (v == null || v.isEmpty) return 'Email wajib diisi';
-                if (!v.contains('@')) return 'Email tidak valid';
+                if (!RegExp(
+                  r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                ).hasMatch(v)) {
+                  return 'Format email tidak valid';
+                }
                 return null;
               },
             ),
@@ -431,14 +503,40 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
               controller: _phoneController,
               style: GoogleFonts.poppins(fontSize: 14),
               keyboardType: TextInputType.phone,
-              decoration: _inputDeco('Nomor Telepon', prefix: Icons.phone_outlined),
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(14)
+              ],
+              decoration: _inputDeco(
+                'Nomor Telepon',
+                prefix: Icons.phone_outlined,
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Nomor telepon wajib diisi';
+                }
+
+                if (value.length < 12) {
+                  return 'Nomor telepon minimal 12 digit';
+                }
+
+                if (value.length > 12) {
+                  return 'Nomor telepon maksimal 12 digit';
+                }
+
+                if (!RegExp(r'^(08|62)[0-9]{8,13}$').hasMatch(value)) {
+                  return 'Format nomor telepon tidak valid';
+                }
+                return null;
+              },
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _addressController,
               style: GoogleFonts.poppins(fontSize: 14),
               maxLines: 2,
-              decoration: _inputDeco('Alamat', prefix: Icons.location_on_outlined),
+              decoration:
+                  _inputDeco('Alamat', prefix: Icons.location_on_outlined),
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -523,7 +621,8 @@ class _EducationTabState extends State<EducationTab> {
     if (_formKey.currentState!.validate()) {
       if (_editingIndex != null) {
         // Untuk UPDATE: gunakan copyWith untuk mempertahankan ID
-        final existingEducation = context.read<CVProvider>().educations[_editingIndex!];
+        final existingEducation =
+            context.read<CVProvider>().educations[_editingIndex!];
         final updatedEducation = existingEducation.copyWith(
           university: _universityController.text,
           major: _majorController.text,
@@ -533,7 +632,9 @@ class _EducationTabState extends State<EducationTab> {
               ? double.tryParse(_gpaController.text)
               : null,
         );
-        context.read<CVProvider>().updateEducation(_editingIndex!, updatedEducation);
+        context
+            .read<CVProvider>()
+            .updateEducation(_editingIndex!, updatedEducation);
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Pendidikan berhasil diperbarui')));
       } else {
@@ -568,7 +669,12 @@ class _EducationTabState extends State<EducationTab> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: [BoxShadow(color: Colors.grey.shade200, blurRadius: 8, offset: const Offset(0, 2))],
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.grey.shade200,
+                        blurRadius: 8,
+                        offset: const Offset(0, 2))
+                  ],
                 ),
                 child: Form(
                   key: _formKey,
@@ -579,13 +685,18 @@ class _EducationTabState extends State<EducationTab> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            _editingIndex != null ? 'Edit Pendidikan' : 'Tambah Pendidikan',
-                            style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600),
+                            _editingIndex != null
+                                ? 'Edit Pendidikan'
+                                : 'Tambah Pendidikan',
+                            style: GoogleFonts.poppins(
+                                fontSize: 15, fontWeight: FontWeight.w600),
                           ),
                           if (_editingIndex != null)
                             TextButton(
                               onPressed: _clearForm,
-                              child: Text('Batal', style: GoogleFonts.poppins(color: Colors.grey)),
+                              child: Text('Batal',
+                                  style:
+                                      GoogleFonts.poppins(color: Colors.grey)),
                             ),
                         ],
                       ),
@@ -594,14 +705,16 @@ class _EducationTabState extends State<EducationTab> {
                         controller: _universityController,
                         style: GoogleFonts.poppins(fontSize: 14),
                         decoration: _inputDeco('Nama Universitas'),
-                        validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+                        validator: (v) =>
+                            (v == null || v.isEmpty) ? 'Wajib diisi' : null,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: _majorController,
                         style: GoogleFonts.poppins(fontSize: 14),
                         decoration: _inputDeco('Jurusan'),
-                        validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+                        validator: (v) =>
+                            (v == null || v.isEmpty) ? 'Wajib diisi' : null,
                       ),
                       const SizedBox(height: 12),
                       Row(
@@ -610,7 +723,9 @@ class _EducationTabState extends State<EducationTab> {
                             child: _YearPickerField(
                               controller: _startYearController,
                               hint: 'Tahun Mulai',
-                              validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+                              validator: (v) => (v == null || v.isEmpty)
+                                  ? 'Wajib diisi'
+                                  : null,
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -618,7 +733,9 @@ class _EducationTabState extends State<EducationTab> {
                             child: _YearPickerField(
                               controller: _endYearController,
                               hint: 'Tahun Selesai',
-                              validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+                              validator: (v) => (v == null || v.isEmpty)
+                                  ? 'Wajib diisi'
+                                  : null,
                             ),
                           ),
                         ],
@@ -627,13 +744,18 @@ class _EducationTabState extends State<EducationTab> {
                       TextFormField(
                         controller: _gpaController,
                         style: GoogleFonts.poppins(fontSize: 14),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
+                        ],
                         decoration: _inputDeco('IPK (Opsional)'),
                       ),
                       const SizedBox(height: 16),
                       _primaryButton(
-                        _editingIndex != null ? 'Simpan Perubahan' : 'Tambah Pendidikan',
+                        _editingIndex != null
+                            ? 'Simpan Perubahan'
+                            : 'Tambah Pendidikan',
                         _submitForm,
                       ),
                     ],
@@ -652,8 +774,25 @@ class _EducationTabState extends State<EducationTab> {
                 delegate: SliverChildBuilderDelegate(
                   (context, index) => EducationCard(
                     education: cvProvider.educations[index],
-                    onEdit: () => _startEdit(index, cvProvider.educations[index]),
-                    onDelete: () => cvProvider.removeEducation(index),
+                    onEdit: () =>
+                        _startEdit(index, cvProvider.educations[index]),
+                    onDelete: () async {
+                      final confirmed = await showDeleteConfirmation(context);
+
+                      if (confirmed) {
+                        cvProvider.removeEducation(index);
+
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Pendidikan berhasil dihapus',
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                    },
                   ),
                   childCount: cvProvider.educations.length,
                 ),
@@ -714,36 +853,103 @@ class _ExperienceTabState extends State<ExperienceTab> {
   }
 
   void _submitForm() {
-    if (_formKey.currentState!.validate()) {
-      if (_editingIndex != null) {
-        // Untuk UPDATE: gunakan copyWith untuk mempertahankan ID
-        final existingExp = context.read<CVProvider>().experiences[_editingIndex!];
-        final updatedExperience = existingExp.copyWith(
-          organization: _organizationController.text,
-          position: _positionController.text,
-          startYear: _startYearController.text,
-          endYear: _endYearController.text,
-          description: _descriptionController.text,
-        );
-        context.read<CVProvider>().updateExperience(_editingIndex!, updatedExperience);
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Pengalaman berhasil diperbarui')));
-      } else {
-        // Untuk CREATE: gunakan Experience.create()
-        final experience = Experience.create(
-          organization: _organizationController.text,
-          position: _positionController.text,
-          startYear: _startYearController.text,
-          endYear: _endYearController.text,
-          description: _descriptionController.text,
-        );
-        context.read<CVProvider>().addExperience(experience);
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Pengalaman berhasil ditambahkan')));
-      }
-      _clearForm();
+    if (!_formKey.currentState!.validate()) {
+      return;
     }
+
+    final currentYear = DateTime.now().year;
+
+    final startYear = int.tryParse(_startYearController.text);
+    final endYear = int.tryParse(_endYearController.text);
+
+    if (startYear == null || endYear == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tahun tidak valid'),
+        ),
+      );
+      return;
+    }
+
+    if (startYear > currentYear) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Tahun mulai tidak boleh melebihi $currentYear',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (endYear > currentYear) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Tahun selesai tidak boleh melebihi $currentYear',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (endYear < startYear) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Tahun selesai tidak boleh lebih kecil dari tahun mulai',
+          ),
+        ),
+      );
+      return;
+    }
+
+    // UPDATE
+    if (_editingIndex != null) {
+      final existingExp =
+          context.read<CVProvider>().experiences[_editingIndex!];
+
+      final updatedExperience = existingExp.copyWith(
+        organization: _organizationController.text.trim(),
+        position: _positionController.text.trim(),
+        startYear: _startYearController.text,
+        endYear: _endYearController.text,
+        description: _descriptionController.text.trim(),
+      );
+
+      context
+          .read<CVProvider>()
+          .updateExperience(_editingIndex!, updatedExperience);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pengalaman berhasil diperbarui'),
+        ),
+      );
+    }
+
+    // CREATE
+    else {
+      final experience = Experience.create(
+        organization: _organizationController.text.trim(),
+        position: _positionController.text.trim(),
+        startYear: _startYearController.text,
+        endYear: _endYearController.text,
+        description: _descriptionController.text.trim(),
+      );
+
+      context.read<CVProvider>().addExperience(experience);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pengalaman berhasil ditambahkan'),
+        ),
+      );
+    }
+
+    _clearForm();
   }
+  
 
   @override
   Widget build(BuildContext context) {
@@ -758,7 +964,12 @@ class _ExperienceTabState extends State<ExperienceTab> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: [BoxShadow(color: Colors.grey.shade200, blurRadius: 8, offset: const Offset(0, 2))],
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.grey.shade200,
+                        blurRadius: 8,
+                        offset: const Offset(0, 2))
+                  ],
                 ),
                 child: Form(
                   key: _formKey,
@@ -769,13 +980,18 @@ class _ExperienceTabState extends State<ExperienceTab> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            _editingIndex != null ? 'Edit Pengalaman' : 'Tambah Pengalaman',
-                            style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600),
+                            _editingIndex != null
+                                ? 'Edit Pengalaman'
+                                : 'Tambah Pengalaman',
+                            style: GoogleFonts.poppins(
+                                fontSize: 15, fontWeight: FontWeight.w600),
                           ),
                           if (_editingIndex != null)
                             TextButton(
                               onPressed: _clearForm,
-                              child: Text('Batal', style: GoogleFonts.poppins(color: Colors.grey)),
+                              child: Text('Batal',
+                                  style:
+                                      GoogleFonts.poppins(color: Colors.grey)),
                             ),
                         ],
                       ),
@@ -784,14 +1000,16 @@ class _ExperienceTabState extends State<ExperienceTab> {
                         controller: _organizationController,
                         style: GoogleFonts.poppins(fontSize: 14),
                         decoration: _inputDeco('Nama Organisasi/Perusahaan'),
-                        validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+                        validator: (v) =>
+                            (v == null || v.isEmpty) ? 'Wajib diisi' : null,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: _positionController,
                         style: GoogleFonts.poppins(fontSize: 14),
                         decoration: _inputDeco('Posisi'),
-                        validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+                        validator: (v) =>
+                            (v == null || v.isEmpty) ? 'Wajib diisi' : null,
                       ),
                       const SizedBox(height: 12),
                       Row(
@@ -800,7 +1018,27 @@ class _ExperienceTabState extends State<ExperienceTab> {
                             child: _YearPickerField(
                               controller: _startYearController,
                               hint: 'Tahun Mulai',
-                              validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+                              validator: (v) {
+                                if (v == null || v.isEmpty) {
+                                  return 'Wajib diisi';
+                                }
+
+                                final year = int.tryParse(v);
+
+                                if (year == null) {
+                                  return 'Tahun tidak valid';
+                                }
+
+                                if (year > DateTime.now().year) {
+                                  return 'Tidak boleh melebihi tahun sekarang';
+                                }
+
+                                if (year < 1950) {
+                                  return 'Tahun tidak valid';
+                                }
+
+                                return null;
+                              },
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -808,7 +1046,33 @@ class _ExperienceTabState extends State<ExperienceTab> {
                             child: _YearPickerField(
                               controller: _endYearController,
                               hint: 'Tahun Selesai',
-                              validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+                              validator: (v) {
+                                if (v == null || v.isEmpty) {
+                                  return 'Wajib diisi';
+                                }
+
+                                final endYear = int.tryParse(v);
+                                final startYear =
+                                    int.tryParse(_startYearController.text);
+
+                                if (endYear == null) {
+                                  return 'Tahun tidak valid';
+                                }
+
+                                if (endYear > DateTime.now().year) {
+                                  return 'Tidak boleh melebihi tahun sekarang';
+                                }
+
+                                if (endYear < 1950) {
+                                  return 'Tahun tidak valid';
+                                }
+
+                                if (startYear != null && endYear < startYear) {
+                                  return 'Tahun selesai tidak boleh sebelum tahun mulai';
+                                }
+
+                                return null;
+                              },
                             ),
                           ),
                         ],
@@ -819,11 +1083,14 @@ class _ExperienceTabState extends State<ExperienceTab> {
                         style: GoogleFonts.poppins(fontSize: 14),
                         maxLines: 3,
                         decoration: _inputDeco('Deskripsi'),
-                        validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+                        validator: (v) =>
+                            (v == null || v.isEmpty) ? 'Wajib diisi' : null,
                       ),
                       const SizedBox(height: 16),
                       _primaryButton(
-                        _editingIndex != null ? 'Simpan Perubahan' : 'Tambah Pengalaman',
+                        _editingIndex != null
+                            ? 'Simpan Perubahan'
+                            : 'Tambah Pengalaman',
                         _submitForm,
                       ),
                     ],
@@ -842,8 +1109,25 @@ class _ExperienceTabState extends State<ExperienceTab> {
                 delegate: SliverChildBuilderDelegate(
                   (context, index) => ExperienceCard(
                     experience: cvProvider.experiences[index],
-                    onEdit: () => _startEdit(index, cvProvider.experiences[index]),
-                    onDelete: () => cvProvider.removeExperience(index),
+                    onEdit: () =>
+                        _startEdit(index, cvProvider.experiences[index]),
+                    onDelete: () async {
+                      final confirmed = await showDeleteConfirmation(context);
+
+                      if (confirmed) {
+                        cvProvider.removeExperience(index);
+
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Pengalaman berhasil dihapus',
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                    },
                   ),
                   childCount: cvProvider.experiences.length,
                 ),
@@ -876,11 +1160,88 @@ class _SkillTabState extends State<SkillTab> {
   }
 
   void _addSkill() {
-    if (_skillController.text.trim().isNotEmpty) {
-      final skill = Skill.create(name: _skillController.text.trim());
-      context.read<CVProvider>().addSkill(skill);
-      _skillController.clear();
+    final cvProvider = context.read<CVProvider>();
+
+    String skillName = _skillController.text.trim();
+
+    // kosong
+    if (skillName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Skill tidak boleh kosong'),
+        ),
+      );
+      return;
     }
+
+    // minimal karakter
+    if (skillName.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Skill minimal 2 karakter'),
+        ),
+      );
+      return;
+    }
+
+    // maksimal karakter
+    if (skillName.length > 50) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Skill maksimal 50 karakter'),
+        ),
+      );
+      return;
+    }
+
+    // hanya angka
+    if (RegExp(r'^[0-9]+$').hasMatch(skillName)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Skill tidak boleh hanya angka'),
+        ),
+      );
+      return;
+    }
+
+    // simbol tidak valid
+    if (!RegExp(r"^[a-zA-Z0-9\s\+\#\.\-]+$").hasMatch(skillName)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Skill mengandung karakter tidak valid'),
+        ),
+      );
+      return;
+    }
+
+    // cek duplikat (case insensitive)
+    bool isDuplicate = cvProvider.skills.any(
+      (skill) =>
+          skill.name.toLowerCase().trim() == skillName.toLowerCase().trim(),
+    );
+
+    if (isDuplicate) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Skill sudah pernah ditambahkan'),
+        ),
+      );
+      return;
+    }
+
+    final skill = Skill.create(
+      name: skillName,
+    );
+
+    cvProvider.addSkill(skill);
+
+    _skillController.clear();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Skill berhasil ditambahkan'),
+      ),
+    );
   }
 
   @override
@@ -896,7 +1257,12 @@ class _SkillTabState extends State<SkillTab> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: [BoxShadow(color: Colors.grey.shade200, blurRadius: 8, offset: const Offset(0, 2))],
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.grey.shade200,
+                        blurRadius: 8,
+                        offset: const Offset(0, 2))
+                  ],
                 ),
                 child: Row(
                   children: [
@@ -904,7 +1270,15 @@ class _SkillTabState extends State<SkillTab> {
                       child: TextField(
                         controller: _skillController,
                         style: GoogleFonts.poppins(fontSize: 14),
-                        decoration: _inputDeco('Tambah Skill'),
+                        maxLength: 50,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                            RegExp(r"[a-zA-Z0-9\s\+\#\.\-]"),
+                          ),
+                        ],
+                        decoration: _inputDeco('Tambah Skill').copyWith(
+                          counterText: '',
+                        ),
                         onSubmitted: (_) => _addSkill(),
                       ),
                     ),
@@ -943,7 +1317,24 @@ class _SkillTabState extends State<SkillTab> {
                           cvProvider.skills.length,
                           (index) => SkillChip(
                             label: cvProvider.skills[index].name,
-                            onDelete: () => cvProvider.removeSkill(index),
+                            onDelete: () async {
+                              final confirmed =
+                                  await showDeleteConfirmation(context);
+
+                              if (confirmed) {
+                                cvProvider.removeSkill(index);
+
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Skill berhasil dihapus',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
                           ),
                         ),
                       ),
@@ -995,13 +1386,16 @@ class _AchievementTabState extends State<AchievementTab> {
     if (_formKey.currentState!.validate()) {
       if (_editingIndex != null) {
         // Untuk UPDATE: buat Achievement baru dengan ID yang sama
-        final existingAch = context.read<CVProvider>().achievements[_editingIndex!];
+        final existingAch =
+            context.read<CVProvider>().achievements[_editingIndex!];
         final updatedAchievement = Achievement(
           id: existingAch.id,
           title: _titleController.text,
           description: _descController.text,
         );
-        context.read<CVProvider>().updateAchievement(_editingIndex!, updatedAchievement);
+        context
+            .read<CVProvider>()
+            .updateAchievement(_editingIndex!, updatedAchievement);
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Penghargaan berhasil diperbarui')));
       } else {
@@ -1031,7 +1425,12 @@ class _AchievementTabState extends State<AchievementTab> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: [BoxShadow(color: Colors.grey.shade200, blurRadius: 8, offset: const Offset(0, 2))],
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.grey.shade200,
+                        blurRadius: 8,
+                        offset: const Offset(0, 2))
+                  ],
                 ),
                 child: Form(
                   key: _formKey,
@@ -1042,21 +1441,28 @@ class _AchievementTabState extends State<AchievementTab> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            _editingIndex != null ? 'Edit Penghargaan' : 'Tambah Penghargaan',
-                            style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600),
+                            _editingIndex != null
+                                ? 'Edit Penghargaan'
+                                : 'Tambah Penghargaan',
+                            style: GoogleFonts.poppins(
+                                fontSize: 15, fontWeight: FontWeight.w600),
                           ),
                           if (_editingIndex != null)
                             TextButton(
                                 onPressed: _clearForm,
-                                child: Text('Batal', style: GoogleFonts.poppins(color: Colors.grey))),
+                                child: Text('Batal',
+                                    style: GoogleFonts.poppins(
+                                        color: Colors.grey))),
                         ],
                       ),
                       const SizedBox(height: 14),
                       TextFormField(
                         controller: _titleController,
                         style: GoogleFonts.poppins(fontSize: 14),
-                        decoration: _inputDeco('Judul Penghargaan', prefix: Icons.emoji_events_outlined),
-                        validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+                        decoration: _inputDeco('Judul Penghargaan',
+                            prefix: Icons.emoji_events_outlined),
+                        validator: (v) =>
+                            (v == null || v.isEmpty) ? 'Wajib diisi' : null,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
@@ -1067,7 +1473,9 @@ class _AchievementTabState extends State<AchievementTab> {
                       ),
                       const SizedBox(height: 16),
                       _primaryButton(
-                          _editingIndex != null ? 'Simpan Perubahan' : 'Tambah Penghargaan',
+                          _editingIndex != null
+                              ? 'Simpan Perubahan'
+                              : 'Tambah Penghargaan',
                           _submit),
                     ],
                   ),
@@ -1092,7 +1500,23 @@ class _AchievementTabState extends State<AchievementTab> {
                       iconColor: const Color(0xFFE65100),
                       iconBg: const Color(0xFFFFF3E0),
                       onEdit: () => _startEdit(index, a),
-                      onDelete: () => cvProvider.removeAchievement(index),
+                      onDelete: () async {
+                        final confirmed = await showDeleteConfirmation(context);
+
+                        if (confirmed) {
+                          cvProvider.removeAchievement(index);
+
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Penghargaan berhasil dihapus',
+                                ),
+                              ),
+                            );
+                          }
+                        }
+                      },
                     );
                   },
                   childCount: cvProvider.achievements.length,
@@ -1153,7 +1577,8 @@ class _PublicationTabState extends State<PublicationTab> {
     if (_formKey.currentState!.validate()) {
       if (_editingIndex != null) {
         // Untuk UPDATE: buat Publication baru dengan ID yang sama
-        final existingPub = context.read<CVProvider>().publications[_editingIndex!];
+        final existingPub =
+            context.read<CVProvider>().publications[_editingIndex!];
         final updatedPublication = Publication(
           id: existingPub.id,
           title: _titleController.text,
@@ -1161,7 +1586,9 @@ class _PublicationTabState extends State<PublicationTab> {
           year: _yearController.text,
           url: _urlController.text,
         );
-        context.read<CVProvider>().updatePublication(_editingIndex!, updatedPublication);
+        context
+            .read<CVProvider>()
+            .updatePublication(_editingIndex!, updatedPublication);
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Publikasi berhasil diperbarui')));
       } else {
@@ -1193,7 +1620,12 @@ class _PublicationTabState extends State<PublicationTab> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: [BoxShadow(color: Colors.grey.shade200, blurRadius: 8, offset: const Offset(0, 2))],
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.grey.shade200,
+                        blurRadius: 8,
+                        offset: const Offset(0, 2))
+                  ],
                 ),
                 child: Form(
                   key: _formKey,
@@ -1204,28 +1636,36 @@ class _PublicationTabState extends State<PublicationTab> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            _editingIndex != null ? 'Edit Publikasi' : 'Tambah Publikasi',
-                            style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600),
+                            _editingIndex != null
+                                ? 'Edit Publikasi'
+                                : 'Tambah Publikasi',
+                            style: GoogleFonts.poppins(
+                                fontSize: 15, fontWeight: FontWeight.w600),
                           ),
                           if (_editingIndex != null)
                             TextButton(
                                 onPressed: _clearForm,
-                                child: Text('Batal', style: GoogleFonts.poppins(color: Colors.grey))),
+                                child: Text('Batal',
+                                    style: GoogleFonts.poppins(
+                                        color: Colors.grey))),
                         ],
                       ),
                       const SizedBox(height: 14),
                       TextFormField(
                         controller: _titleController,
                         style: GoogleFonts.poppins(fontSize: 14),
-                        decoration: _inputDeco('Judul Publikasi', prefix: Icons.article_outlined),
+                        decoration: _inputDeco('Judul Publikasi',
+                            prefix: Icons.article_outlined),
                         maxLines: 2,
-                        validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+                        validator: (v) =>
+                            (v == null || v.isEmpty) ? 'Wajib diisi' : null,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: _journalController,
                         style: GoogleFonts.poppins(fontSize: 14),
-                        decoration: _inputDeco('Nama Jurnal/Konferensi (Opsional)'),
+                        decoration:
+                            _inputDeco('Nama Jurnal/Konferensi (Opsional)'),
                       ),
                       const SizedBox(height: 12),
                       _YearPickerField(
@@ -1236,12 +1676,15 @@ class _PublicationTabState extends State<PublicationTab> {
                       TextFormField(
                         controller: _urlController,
                         style: GoogleFonts.poppins(fontSize: 14),
-                        decoration: _inputDeco('URL / DOI (Opsional)', prefix: Icons.link),
+                        decoration: _inputDeco('URL / DOI (Opsional)',
+                            prefix: Icons.link),
                         keyboardType: TextInputType.url,
                       ),
                       const SizedBox(height: 16),
                       _primaryButton(
-                          _editingIndex != null ? 'Simpan Perubahan' : 'Tambah Publikasi',
+                          _editingIndex != null
+                              ? 'Simpan Perubahan'
+                              : 'Tambah Publikasi',
                           _submit),
                     ],
                   ),
@@ -1261,12 +1704,30 @@ class _PublicationTabState extends State<PublicationTab> {
                     final p = cvProvider.publications[index];
                     return _ItemCard(
                       title: p.title,
-                      subtitle: [p.journal, p.year].where((s) => s.isNotEmpty).join(' · '),
+                      subtitle: [p.journal, p.year]
+                          .where((s) => s.isNotEmpty)
+                          .join(' · '),
                       icon: Icons.article_outlined,
                       iconColor: const Color(0xFF6A1B9A),
                       iconBg: const Color(0xFFF3E5F5),
                       onEdit: () => _startEdit(index, p),
-                      onDelete: () => cvProvider.removePublication(index),
+                      onDelete: () async {
+                        final confirmed = await showDeleteConfirmation(context);
+
+                        if (confirmed) {
+                          cvProvider.removePublication(index);
+
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Publikasi berhasil dihapus',
+                                ),
+                              ),
+                            );
+                          }
+                        }
+                      },
                     );
                   },
                   childCount: cvProvider.publications.length,
@@ -1308,7 +1769,12 @@ class _ItemCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.grey.shade200, blurRadius: 6, offset: const Offset(0, 2))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.grey.shade200,
+              blurRadius: 6,
+              offset: const Offset(0, 2))
+        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1316,7 +1782,8 @@ class _ItemCard extends StatelessWidget {
           Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(
+                color: iconBg, borderRadius: BorderRadius.circular(10)),
             child: Icon(icon, color: iconColor, size: 20),
           ),
           const SizedBox(width: 12),
@@ -1324,10 +1791,16 @@ class _ItemCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87)),
+                Text(title,
+                    style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87)),
                 if (subtitle.isNotEmpty) ...[
                   const SizedBox(height: 3),
-                  Text(subtitle, style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600)),
+                  Text(subtitle,
+                      style: GoogleFonts.poppins(
+                          fontSize: 12, color: Colors.grey.shade600)),
                 ],
               ],
             ),
@@ -1338,18 +1811,26 @@ class _ItemCard extends StatelessWidget {
               GestureDetector(
                 onTap: onEdit,
                 child: Container(
-                  width: 34, height: 34,
-                  decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
-                  child: const Icon(Icons.edit_outlined, size: 18, color: _kBlue),
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8)),
+                  child:
+                      const Icon(Icons.edit_outlined, size: 18, color: _kBlue),
                 ),
               ),
               const SizedBox(width: 8),
               GestureDetector(
                 onTap: onDelete,
                 child: Container(
-                  width: 34, height: 34,
-                  decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
-                  child: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8)),
+                  child: const Icon(Icons.delete_outline,
+                      size: 18, color: Colors.red),
                 ),
               ),
             ],
@@ -1368,7 +1849,9 @@ Widget _emptyState(String message) => Padding(
           children: [
             Icon(Icons.inbox_outlined, size: 56, color: Colors.grey.shade400),
             const SizedBox(height: 12),
-            Text(message, style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade400)),
+            Text(message,
+                style: GoogleFonts.poppins(
+                    fontSize: 14, color: Colors.grey.shade400)),
           ],
         ),
       ),
