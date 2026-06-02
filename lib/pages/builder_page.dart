@@ -218,6 +218,10 @@ class _BuilderPageState extends State<BuilderPage>
         backgroundColor: _kBlue,
         elevation: 0,
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white), // ← tambahkan ini
+          onPressed: () => Navigator.pop(context), // ← tambahkan ini untuk navigasi back
+        ),
         title: Text('Buat CV',
             style: GoogleFonts.poppins(
                 fontSize: 18,
@@ -231,8 +235,7 @@ class _BuilderPageState extends State<BuilderPage>
           indicatorWeight: 3,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white60,
-          labelStyle:
-              GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600),
+          labelStyle: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600),
           unselectedLabelStyle: GoogleFonts.poppins(fontSize: 13),
           tabs: const [
             Tab(text: 'Data Diri'),

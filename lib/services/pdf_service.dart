@@ -190,6 +190,7 @@ class PDFService {
         pw.Container(height: 1, color: _cGrey300),
         pw.SizedBox(height: 30),
         
+        // Menggunakan MultiPage agar bisa multiple pages
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
@@ -207,7 +208,7 @@ class PDFService {
                   if (skills.isNotEmpty) ...[
                     _atsSectionTitle('KETERAMPILAN'),
                     pw.SizedBox(height: 8),
-                    ...skills.take(8).map((s) => pw.Padding(
+                    ...skills.map((s) => pw.Padding(
                       padding: const pw.EdgeInsets.only(bottom: 6),
                       child: pw.Row(
                         children: [
@@ -222,7 +223,7 @@ class PDFService {
                   if (ach.isNotEmpty) ...[
                     _atsSectionTitle('PENCAPAIAN'),
                     pw.SizedBox(height: 8),
-                    ...ach.take(3).map((a) => pw.Padding(
+                    ...ach.map((a) => pw.Padding(
                       padding: const pw.EdgeInsets.only(bottom: 10),
                       child: pw.Column(
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -347,7 +348,7 @@ class PDFService {
         if (ach.isNotEmpty) ...[
           pw.Text('PENCAPAIAN', style: _boldStyle(size: 12, color: _cSecondary)),
           pw.SizedBox(height: 8),
-          ...ach.take(3).map((a) => pw.Padding(
+          ...ach.map((a) => pw.Padding(
             padding: const pw.EdgeInsets.only(bottom: 6),
             child: pw.Text('• ${a.title}', style: _regularStyle(size: 9.5)),
           )),
@@ -357,7 +358,7 @@ class PDFService {
         if (pub.isNotEmpty) ...[
           pw.Text('PUBLIKASI', style: _boldStyle(size: 12, color: _cSecondary)),
           pw.SizedBox(height: 8),
-          ...pub.take(2).map((p) => pw.Padding(
+          ...pub.map((p) => pw.Padding(
             padding: const pw.EdgeInsets.only(bottom: 6),
             child: pw.Text('• ${p.title}', style: _regularStyle(size: 9.5)),
           )),
@@ -366,7 +367,7 @@ class PDFService {
     ));
   }
 
-  // ==================== CREATIVE TEMPLATE 1 - FULL HEIGHT SIDEBAR ====================
+  // ==================== CREATIVE TEMPLATE 1 ====================
   static void _buildCreativeTemplate(
       pw.Document doc,
       String name,
@@ -390,15 +391,14 @@ class PDFService {
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            // Sidebar - Full height dengan Expanded
-            pw.Expanded(
-              flex: 30,
+            // Sidebar kiri - width fixed
+            pw.SizedBox(
+              width: 170,
               child: pw.Container(
                 color: _cSecondary,
                 padding: const pw.EdgeInsets.all(24),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  mainAxisSize: pw.MainAxisSize.max,
                   children: [
                     if (photo != null) ...[
                       pw.Center(
@@ -431,24 +431,21 @@ class PDFService {
                     ]),
                     pw.SizedBox(height: 20),
                     if (skills.isNotEmpty)
-                      _creativeSidebarSection('KETERAMPILAN', skills.take(6).map((s) => s.name).toList()),
+                      _creativeSidebarSection('KETERAMPILAN', skills.map((s) => s.name).toList()),
                     pw.SizedBox(height: 20),
                     if (ach.isNotEmpty)
-                      _creativeSidebarSection('PENCAPAIAN', ach.take(3).map((a) => a.title).toList()),
-                    pw.Spacer(),
+                      _creativeSidebarSection('PENCAPAIAN', ach.map((a) => a.title).toList()),
                   ],
                 ),
               ),
             ),
             
-            // Main Content - Full height
+            // Main Content
             pw.Expanded(
-              flex: 70,
               child: pw.Container(
                 padding: const pw.EdgeInsets.all(30),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  mainAxisSize: pw.MainAxisSize.max,
                   children: [
                     if (summary.isNotEmpty) ...[
                       pw.Text(summary, style: _regularStyle(size: 10.5), textAlign: pw.TextAlign.justify),
@@ -471,7 +468,6 @@ class PDFService {
                       pw.SizedBox(height: 12),
                       ...pub.map((p) => _atsPublicationCard(p)),
                     ],
-                    pw.Spacer(),
                   ],
                 ),
               ),
@@ -482,7 +478,7 @@ class PDFService {
     ));
   }
 
-  // ==================== CREATIVE TEMPLATE 2 - FULL HEIGHT SIDEBAR GRADIENT ====================
+  // ==================== CREATIVE TEMPLATE 2 ====================
   static void _buildCreative2Template(
       pw.Document doc,
       String name,
@@ -506,9 +502,9 @@ class PDFService {
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            // Sidebar with gradient - Full height
-            pw.Expanded(
-              flex: 30,
+            // Sidebar kiri dengan gradien
+            pw.SizedBox(
+              width: 170,
               child: pw.Container(
                 decoration: const pw.BoxDecoration(
                   gradient: pw.LinearGradient(
@@ -520,7 +516,6 @@ class PDFService {
                 padding: const pw.EdgeInsets.all(24),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.center,
-                  mainAxisSize: pw.MainAxisSize.max,
                   children: [
                     if (photo != null) ...[
                       pw.Container(
@@ -547,24 +542,21 @@ class PDFService {
                     ]),
                     pw.SizedBox(height: 24),
                     if (skills.isNotEmpty)
-                      _creative2SidebarSection('KETERAMPILAN', skills.take(6).map((s) => s.name).toList()),
+                      _creative2SidebarSection('KETERAMPILAN', skills.map((s) => s.name).toList()),
                     pw.SizedBox(height: 24),
                     if (ach.isNotEmpty)
-                      _creative2SidebarSection('PENCAPAIAN', ach.take(3).map((a) => a.title).toList()),
-                    pw.Spacer(),
+                      _creative2SidebarSection('PENCAPAIAN', ach.map((a) => a.title).toList()),
                   ],
                 ),
               ),
             ),
             
-            // Main Content - Full height
+            // Main Content
             pw.Expanded(
-              flex: 70,
               child: pw.Container(
                 padding: const pw.EdgeInsets.all(30),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  mainAxisSize: pw.MainAxisSize.max,
                   children: [
                     pw.Row(
                       children: [
@@ -616,7 +608,6 @@ class PDFService {
                       pw.SizedBox(height: 16),
                       ...pub.map((p) => _creative2PublicationCard(p)),
                     ],
-                    pw.Spacer(),
                   ],
                 ),
               ),
