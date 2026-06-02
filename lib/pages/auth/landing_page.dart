@@ -16,29 +16,43 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _setFullscreen();
+    _setSystemUI();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _setFullscreen();
+      _setSystemUI();
     }
   }
 
-  void _setFullscreen() {
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  void _setSystemUI() {
+    // Gunakan edge-to-edge agar konten bisa sampai ke tepi,
+    // tapi tetap memperhatikan cutout dan gesture navigation
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.edgeToEdge,
+    );
+    
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.light,
+        // Untuk Android, ini akan membuat navigation bar transparan
+        systemNavigationBarDividerColor: Colors.transparent,
       ),
     );
   }
 
   @override
   void dispose() {
+    // Kembalikan ke mode default saat halaman ditutup
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      systemNavigationBarColor: null, // Kembali ke default
+      statusBarColor: null,
+    ));
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -47,6 +61,9 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
+      // Ini penting untuk menghindari tumpang tindih dengan system UI
+      extendBody: true,
+      extendBodyBehindAppBar: true,
       body: Stack(
         children: [
           // Background SVG
@@ -74,20 +91,22 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
             ),
           ),
 
-          // Content
+          // Content dengan SafeArea yang lebih cerdas
           SafeArea(
+            // Hanya bottom yang false, top tetap true agar tidak tumpang tindih status bar
             bottom: false,
+            // Tambahkan minimum padding untuk bottom
             child: Column(
               children: [
-                // Teks tepat di tengah layar
-                Expanded(
+                // Spacer fleksibel untuk teks di tengah
+                const Expanded(
                   child: Center(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                      padding: EdgeInsets.symmetric(horizontal: 28),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text(
+                          Text(
                             'Selamat Datang!',
                             textAlign: TextAlign.center,
                             style: TextStyle(
@@ -97,9 +116,8 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
                               height: 1.2,
                             ),
                           ),
-                          const SizedBox(height: 14),
-                          // Baris 1 — bold
-                          const Text(
+                          SizedBox(height: 14),
+                          Text(
                             'Buat CV profesional Anda dalam hitungan menit',
                             textAlign: TextAlign.center,
                             style: TextStyle(
@@ -109,15 +127,14 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
                               height: 1.2,
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          // Baris 2 — normal, sedikit lebih redup
+                          SizedBox(height: 4),
                           Text(
                             'Isi detail Anda dan buat CV Anda secara instan.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.normal,
-                              color: Colors.white.withValues(alpha: 0.8),
+                              color: Colors.white70,
                               height: 1.2,
                             ),
                           ),
@@ -127,75 +144,85 @@ class _LandingPageState extends State<LandingPage> with WidgetsBindingObserver {
                   ),
                 ),
 
-                // Tombol pojok
-                SizedBox(
-                  height: 90,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Tombol DAFTAR — pojok kanan atas
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const RegisterPage(),
-                            ),
-                          ),
-                          child: Container(
-                            alignment: Alignment.topCenter,
-                            padding: const EdgeInsets.only(top: 38),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF285EA4)
-                                  .withValues(alpha: 0.2),
-                              borderRadius: const BorderRadius.only(
-                                topRight: Radius.circular(50),
+                // Tombol-tombol dengan padding untuk gesture navigation
+                Padding(
+                  // Padding bottom untuk menghindari gesture navigation bar
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).padding.bottom,
+                  ),
+                  child: SizedBox(
+                    height: 90,
+                    child: Padding(
+                      // Padding horizontal agar tidak terlalu pinggir
+                      padding: const EdgeInsets.symmetric(horizontal: 0),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Tombol DAFTAR
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const RegisterPage(),
+                                ),
+                              ),
+                              child: Container(
+                                alignment: Alignment.topCenter,
+                                padding: const EdgeInsets.only(top: 38),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF285EA4)
+                                      .withValues(alpha: 0.2),
+                                  borderRadius: const BorderRadius.only(
+                                    topRight: Radius.circular(50),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Daftar',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
                               ),
                             ),
-                            child: const Text(
-                              'Daftar',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
                           ),
-                        ),
-                      ),
 
-                      const SizedBox(width: 16),
+                          const SizedBox(width: 16),
 
-                      // Tombol MASUK — pojok kiri atas
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const LoginPage(),
-                            ),
-                          ),
-                          child: Container(
-                            alignment: Alignment.topCenter,
-                            padding: const EdgeInsets.only(top: 38),
-                            decoration: BoxDecoration(
-                               color: Colors.white.withValues(alpha: 0.5),
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(50),
+                          // Tombol MASUK
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const LoginPage(),
+                                ),
+                              ),
+                              child: Container(
+                                alignment: Alignment.topCenter,
+                                padding: const EdgeInsets.only(top: 38),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.5),
+                                  borderRadius: const BorderRadius.only(
+                                    topLeft: Radius.circular(50),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Masuk',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color.fromARGB(255, 12, 53, 106),
+                                  ),
+                                ),
                               ),
                             ),
-                            child: const Text(
-                              'Masuk',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: Color.fromARGB(255, 12, 53, 106),
-                              ),
-                            ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ],

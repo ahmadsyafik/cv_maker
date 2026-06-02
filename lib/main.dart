@@ -30,10 +30,9 @@ Future<void> main() async {
     debugPrint('❌ Firebase initialization error: $e');
   }
 
-  // runApp(const MyApp());
   runApp(
-    DevicePreview(builder: (context)=> const MyApp())
-    );
+    DevicePreview(builder: (context) => const MyApp())
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -93,21 +92,16 @@ class _AuthWrapperState extends State<AuthWrapper> {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        // Loading state
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const _LoadingScreen();
         }
 
-        // User sudah login
         if (snapshot.hasData) {
           _loadDataOnce();
-
           return const MainNavigation();
         }
 
-        // Reset ketika logout
         _hasLoadedData = false;
-
         return const LandingPage();
       },
     );
@@ -115,7 +109,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   void _loadDataOnce() {
     if (_hasLoadedData) return;
-
     _hasLoadedData = true;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -164,7 +157,6 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   void initState() {
     super.initState();
-
     _pages = const [
       HomePage(),
       BuilderPage(),
@@ -181,44 +173,55 @@ class _MainNavigationState extends State<MainNavigation> {
         index: _currentIndex,
         children: _pages,
       ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: NavigationBar(
-          selectedIndex: _currentIndex,
-          height: 65,
-          elevation: 4,
-          backgroundColor: Colors.white,
-          indicatorColor: Colors.blue.shade100,
-          surfaceTintColor: Colors.white,
-          shadowColor: Colors.black26,
-          onDestinationSelected: _onTabChanged,
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home),
-              label: 'Beranda',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.edit_outlined),
-              selectedIcon: Icon(Icons.edit),
-              label: 'Buat CV',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.preview_outlined),
-              selectedIcon: Icon(Icons.preview),
-              label: 'Pratinjau',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.ios_share_outlined),
-              selectedIcon: Icon(Icons.ios_share),
-              label: 'Ekspor',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: 'Profil',
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
             ),
           ],
+        ),
+        child: SafeArea(
+          child: NavigationBar(
+            selectedIndex: _currentIndex,
+            onDestinationSelected: _onTabChanged,
+            height: 65,
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            indicatorColor: Colors.blue.shade100,
+            surfaceTintColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home),
+                label: 'Beranda',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.edit_outlined),
+                selectedIcon: Icon(Icons.edit),
+                label: 'Buat CV',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.preview_outlined),
+                selectedIcon: Icon(Icons.preview),
+                label: 'Pratinjau',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.ios_share_outlined),
+                selectedIcon: Icon(Icons.ios_share),
+                label: 'Ekspor',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.person_outline),
+                selectedIcon: Icon(Icons.person),
+                label: 'Profil',
+              ),
+            ],
+          ),
         ),
       ),
     );
