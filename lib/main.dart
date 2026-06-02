@@ -24,15 +24,13 @@ Future<void> main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    
+
     debugPrint('✅ Firebase initialized successfully');
   } catch (e) {
     debugPrint('❌ Firebase initialization error: $e');
   }
 
-  runApp(
-    DevicePreview(builder: (context) => const MyApp())
-  );
+  runApp(DevicePreview(builder: (context) => const MyApp()));
 }
 
 class MyApp extends StatelessWidget {
@@ -143,20 +141,28 @@ class _AuthWrapperState extends State<AuthWrapper> {
 }
 
 class MainNavigation extends StatefulWidget {
-  const MainNavigation({super.key});
+  final int initialIndex;
+
+  const MainNavigation({
+    super.key,
+    this.initialIndex = 0,
+  });
 
   @override
   State<MainNavigation> createState() => _MainNavigationState();
 }
 
 class _MainNavigationState extends State<MainNavigation> {
-  int _currentIndex = 0;
+  late int _currentIndex;
 
   late final List<Widget> _pages;
 
   @override
   void initState() {
     super.initState();
+
+    _currentIndex = widget.initialIndex;
+
     _pages = const [
       HomePage(),
       BuilderPage(),

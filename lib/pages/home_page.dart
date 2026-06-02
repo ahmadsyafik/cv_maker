@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../main.dart';
 import '../state/cv_provider.dart';
 import '../providers/user_provider.dart';
 
@@ -49,7 +50,8 @@ class HomePage extends StatelessWidget {
 
           // Progress value dan teks
           final double displayProgress = cvProgress;
-          final String progressText = '${(cvProgress * 100).toStringAsFixed(0)}% Selesai';
+          final String progressText =
+              '${(cvProgress * 100).toStringAsFixed(0)}% Selesai';
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -223,6 +225,9 @@ class HomePage extends StatelessWidget {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 24),
+
+                  _buildCreateCvCard(context),
                 ],
               ),
             ),
@@ -324,6 +329,75 @@ class HomePage extends StatelessWidget {
               color: Colors.grey.shade600,
             ),
             textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCreateCvCard(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF1565C0),
+            Color(0xFF42A5F5),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.description,
+            size: 40,
+            color: Colors.white,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Buat CV Profesional',
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Lengkapi data dan buat CV yang siap digunakan untuk melamar pekerjaan.',
+            style: GoogleFonts.poppins(
+              color: Colors.white70,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const MainNavigation(
+                      initialIndex: 1,
+                    ),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFF1565C0),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 14,
+                ),
+              ),
+              child: const Text(
+                'Buat CV Sekarang',
+              ),
+            ),
           ),
         ],
       ),
