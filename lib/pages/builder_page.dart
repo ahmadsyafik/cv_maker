@@ -949,7 +949,6 @@ class _ExperienceTabState extends State<ExperienceTab> {
 
     _clearForm();
   }
-  
 
   @override
   Widget build(BuildContext context) {
@@ -1574,6 +1573,31 @@ class _PublicationTabState extends State<PublicationTab> {
   }
 
   void _submit() {
+    final title = _titleController.text.trim();
+    final year = _yearController.text.trim();
+    final journal = _journalController.text.trim();
+    final url = _urlController.text.trim();
+
+    final isDuplicate =
+        context.read<CVProvider>().publications.asMap().entries.any((entry) {
+      if (_editingIndex != null && entry.key == _editingIndex) {
+        return false;
+      }
+
+      return entry.value.title.toLowerCase().trim() == title.toLowerCase() &&
+          entry.value.year.trim() == year;
+    });
+
+    if (isDuplicate) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Publikasi tersebut sudah pernah ditambahkan',
+          ),
+        ),
+      );
+      return;
+    }
     if (_formKey.currentState!.validate()) {
       if (_editingIndex != null) {
         // Untuk UPDATE: buat Publication baru dengan ID yang sama
@@ -1581,10 +1605,10 @@ class _PublicationTabState extends State<PublicationTab> {
             context.read<CVProvider>().publications[_editingIndex!];
         final updatedPublication = Publication(
           id: existingPub.id,
-          title: _titleController.text,
-          journal: _journalController.text,
-          year: _yearController.text,
-          url: _urlController.text,
+          title: title,
+          journal: journal,
+          year: year,
+          url: url,
         );
         context
             .read<CVProvider>()
@@ -1594,10 +1618,10 @@ class _PublicationTabState extends State<PublicationTab> {
       } else {
         // Untuk CREATE: gunakan Publication.create()
         final pub = Publication.create(
-          title: _titleController.text,
-          journal: _journalController.text,
-          year: _yearController.text,
-          url: _urlController.text,
+          title: title,
+          journal: journal,
+          year: year,
+          url: url,
         );
         context.read<CVProvider>().addPublication(pub);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1664,21 +1688,78 @@ class _PublicationTabState extends State<PublicationTab> {
                       TextFormField(
                         controller: _journalController,
                         style: GoogleFonts.poppins(fontSize: 14),
-                        decoration:
-                            _inputDeco('Nama Jurnal/Konferensi (Opsional)'),
+                        decoration: _inputDeco(
+                          'Nama Jurnal/Konferensi',
+                          prefix: Icons.menu_book_outlined,
+                        ),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) {
+                            return 'Nama jurnal wajib diisi';
+                          }
+
+                          if (v.trim().length < 3) {
+                            return 'Nama jurnal terlalu pendek';
+                          }
+
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 12),
                       _YearPickerField(
                         controller: _yearController,
-                        hint: 'Tahun Publikasi (Opsional)',
+                        hint: 'Tahun Publikasi',
+                        validator: (v) {
+                          if (v == null || v.isEmpty) {
+                            return 'Tahun publikasi wajib diisi';
+                          }
+
+                          final year = int.tryParse(v);
+
+                          if (year == null) {
+                            return 'Tahun tidak valid';
+                          }
+
+                          if (year < 1950) {
+                            return 'Tahun tidak valid';
+                          }
+
+                          if (year > DateTime.now().year) {
+                            return 'Tidak boleh melebihi tahun sekarang';
+                          }
+
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: _urlController,
                         style: GoogleFonts.poppins(fontSize: 14),
-                        decoration: _inputDeco('URL / DOI (Opsional)',
-                            prefix: Icons.link),
                         keyboardType: TextInputType.url,
+                        decoration: _inputDeco(
+                          'URL / DOI',
+                          prefix: Icons.link,
+                        ),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) {
+                            return 'DOI atau URL wajib diisi';
+                          }
+
+                          final value = v.trim();
+
+                          final isUrl =
+                              Uri.tryParse(value)?.hasAbsolutePath ?? false;
+
+                          final isDoi = RegExp(
+                            r'^10\.\d{4,9}/[-._;()/:A-Z0-9]+$',
+                            caseSensitive: false,
+                          ).hasMatch(value);
+
+                          if (!isUrl && !isDoi) {
+                            return 'Masukkan URL atau DOI yang valid';
+                          }
+
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 16),
                       _primaryButton(
