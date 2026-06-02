@@ -108,46 +108,90 @@ Future<bool> showDeleteConfirmation(BuildContext context) async {
       false;
 }
 
-// ─── Year Picker Field ────────────────────────────────────────────────────────
-class _YearPickerField extends StatefulWidget {
+// ─── Year Picker Field dengan opsi "Sampai Sekarang" ─────────────────────────
+class _YearPickerWithUntilNowField extends StatefulWidget {
   final TextEditingController controller;
   final String hint;
   final String? Function(String?)? validator;
-  const _YearPickerField({
+  final bool isEndYear;
+  
+  const _YearPickerWithUntilNowField({
     required this.controller,
     required this.hint,
     this.validator,
+    this.isEndYear = false,
   });
 
   @override
-  State<_YearPickerField> createState() => _YearPickerFieldState();
+  State<_YearPickerWithUntilNowField> createState() => _YearPickerWithUntilNowFieldState();
 }
 
-class _YearPickerFieldState extends State<_YearPickerField> {
+class _YearPickerWithUntilNowFieldState extends State<_YearPickerWithUntilNowField> {
+  bool _isUntilNow = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Cek apakah nilai controller adalah "Sekarang"
+    if (widget.controller.text == "Sekarang") {
+      _isUntilNow = true;
+    }
+  }
+
   Future<void> _pickYear() async {
     final currentYear = DateTime.now().year;
-    int selectedYear = int.tryParse(widget.controller.text) ?? currentYear;
+    int selectedYear = _isUntilNow ? currentYear : (int.tryParse(widget.controller.text) ?? currentYear);
 
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Pilih Tahun',
+        title: Text(widget.isEndYear ? 'Pilih Tahun Selesai' : 'Pilih Tahun',
             style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
         content: SizedBox(
           width: 280,
-          height: 200,
+          height: widget.isEndYear ? 280 : 200,
           child: StatefulBuilder(
             builder: (context, setDialogState) {
-              return YearPicker(
-                firstDate: DateTime(1950),
-                lastDate: DateTime(currentYear),
-                selectedDate: DateTime(selectedYear),
-                onChanged: (date) {
-                  setDialogState(() => selectedYear = date.year);
-                  widget.controller.text = date.year.toString();
-                  Navigator.pop(context);
-                },
+              return Column(
+                children: [
+                  if (widget.isEndYear) ...[
+                    CheckboxListTile(
+                      title: Text('Sampai Sekarang',
+                          style: GoogleFonts.poppins(fontSize: 14)),
+                      value: _isUntilNow,
+                      activeColor: _kBlue,
+                      onChanged: (value) {
+                        setDialogState(() {
+                          _isUntilNow = value ?? false;
+                          if (_isUntilNow) {
+                            widget.controller.text = "Sekarang";
+                            Navigator.pop(context);
+                          } else {
+                            widget.controller.clear();
+                          }
+                        });
+                      },
+                    ),
+                    const Divider(),
+                    const SizedBox(height: 8),
+                  ],
+                  Expanded(
+                    child: YearPicker(
+                      firstDate: DateTime(1950),
+                      lastDate: DateTime(currentYear),
+                      selectedDate: DateTime(selectedYear),
+                      onChanged: (date) {
+                        setDialogState(() {
+                          selectedYear = date.year;
+                          _isUntilNow = false;
+                          widget.controller.text = date.year.toString();
+                          Navigator.pop(context);
+                        });
+                      },
+                    ),
+                  ),
+                ],
               );
             },
           ),
@@ -219,8 +263,8 @@ class _BuilderPageState extends State<BuilderPage>
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white), // ← tambahkan ini
-          onPressed: () => Navigator.pop(context), // ← tambahkan ini untuk navigasi back
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
         ),
         title: Text('Buat CV',
             style: GoogleFonts.poppins(
@@ -477,11 +521,9 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
                 if (v == null || v.trim().isEmpty) {
                   return 'Nama lengkap wajib diisi';
                 }
-
                 if (v.trim().length < 3) {
                   return 'Nama minimal 3 karakter';
                 }
-
                 return null;
               },
             ),
@@ -518,16 +560,13 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
                 if (value == null || value.trim().isEmpty) {
                   return 'Nomor telepon wajib diisi';
                 }
-
-                if (value.length < 12) {
-                  return 'Nomor telepon minimal 12 digit';
+                if (value.length < 10) {
+                  return 'Nomor telepon minimal 10 digit';
                 }
-
-                if (value.length > 12) {
-                  return 'Nomor telepon maksimal 12 digit';
+                if (value.length > 14) {
+                  return 'Nomor telepon maksimal 14 digit';
                 }
-
-                if (!RegExp(r'^(08|62)[0-9]{8,13}$').hasMatch(value)) {
+                if (!RegExp(r'^(08|62)[0-9]{8,12}$').hasMatch(value)) {
                   return 'Format nomor telepon tidak valid';
                 }
                 return null;
@@ -573,7 +612,7 @@ class _PersonalDataTabState extends State<PersonalDataTab> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  Tab 2 – Pendidikan (unlimited, with edit fix)
+//  Tab 2 – Pendidikan (dengan opsi Sampai Sekarang)
 // ═══════════════════════════════════════════════════════════════════════════════
 class EducationTab extends StatefulWidget {
   const EducationTab({super.key});
@@ -617,13 +656,23 @@ class _EducationTabState extends State<EducationTab> {
     _endYearController.text = edu.endYear;
     _gpaController.text = edu.gpa?.toString() ?? '';
     setState(() => _editingIndex = index);
-    // Scroll ke atas form
   }
 
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
+      // Validasi tahun
+      if (_endYearController.text != "Sekarang") {
+        final startYear = int.tryParse(_startYearController.text);
+        final endYear = int.tryParse(_endYearController.text);
+        if (startYear != null && endYear != null && endYear < startYear) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Tahun selesai tidak boleh kurang dari tahun mulai')),
+          );
+          return;
+        }
+      }
+
       if (_editingIndex != null) {
-        // Untuk UPDATE: gunakan copyWith untuk mempertahankan ID
         final existingEducation =
             context.read<CVProvider>().educations[_editingIndex!];
         final updatedEducation = existingEducation.copyWith(
@@ -641,7 +690,6 @@ class _EducationTabState extends State<EducationTab> {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Pendidikan berhasil diperbarui')));
       } else {
-        // Untuk CREATE: gunakan Education.create()
         final education = Education.create(
           university: _universityController.text,
           major: _majorController.text,
@@ -723,9 +771,10 @@ class _EducationTabState extends State<EducationTab> {
                       Row(
                         children: [
                           Expanded(
-                            child: _YearPickerField(
+                            child: _YearPickerWithUntilNowField(
                               controller: _startYearController,
                               hint: 'Tahun Mulai',
+                              isEndYear: false,
                               validator: (v) => (v == null || v.isEmpty)
                                   ? 'Wajib diisi'
                                   : null,
@@ -733,9 +782,10 @@ class _EducationTabState extends State<EducationTab> {
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: _YearPickerField(
+                            child: _YearPickerWithUntilNowField(
                               controller: _endYearController,
                               hint: 'Tahun Selesai',
+                              isEndYear: true,
                               validator: (v) => (v == null || v.isEmpty)
                                   ? 'Wajib diisi'
                                   : null,
@@ -781,16 +831,12 @@ class _EducationTabState extends State<EducationTab> {
                         _startEdit(index, cvProvider.educations[index]),
                     onDelete: () async {
                       final confirmed = await showDeleteConfirmation(context);
-
                       if (confirmed) {
                         cvProvider.removeEducation(index);
-
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text(
-                                'Pendidikan berhasil dihapus',
-                              ),
+                              content: Text('Pendidikan berhasil dihapus'),
                             ),
                           );
                         }
@@ -809,7 +855,7 @@ class _EducationTabState extends State<EducationTab> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  Tab 3 – Pengalaman (unlimited, with edit fix)
+//  Tab 3 – Pengalaman (dengan opsi Sampai Sekarang)
 // ═══════════════════════════════════════════════════════════════════════════════
 class ExperienceTab extends StatefulWidget {
   const ExperienceTab({super.key});
@@ -861,57 +907,47 @@ class _ExperienceTabState extends State<ExperienceTab> {
     }
 
     final currentYear = DateTime.now().year;
-
     final startYear = int.tryParse(_startYearController.text);
-    final endYear = int.tryParse(_endYearController.text);
 
-    if (startYear == null || endYear == null) {
+    if (startYear == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Tahun tidak valid'),
-        ),
+        const SnackBar(content: Text('Tahun mulai tidak valid')),
       );
       return;
     }
 
     if (startYear > currentYear) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Tahun mulai tidak boleh melebihi $currentYear',
-          ),
-        ),
+        SnackBar(content: Text('Tahun mulai tidak boleh melebihi $currentYear')),
       );
       return;
     }
 
-    if (endYear > currentYear) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Tahun selesai tidak boleh melebihi $currentYear',
-          ),
-        ),
-      );
-      return;
+    // Validasi untuk end year
+    if (_endYearController.text != "Sekarang") {
+      final endYear = int.tryParse(_endYearController.text);
+      if (endYear == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tahun selesai tidak valid')),
+        );
+        return;
+      }
+      if (endYear > currentYear) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Tahun selesai tidak boleh melebihi $currentYear')),
+        );
+        return;
+      }
+      if (endYear < startYear) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tahun selesai tidak boleh kurang dari tahun mulai')),
+        );
+        return;
+      }
     }
 
-    if (endYear < startYear) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Tahun selesai tidak boleh lebih kecil dari tahun mulai',
-          ),
-        ),
-      );
-      return;
-    }
-
-    // UPDATE
     if (_editingIndex != null) {
-      final existingExp =
-          context.read<CVProvider>().experiences[_editingIndex!];
-
+      final existingExp = context.read<CVProvider>().experiences[_editingIndex!];
       final updatedExperience = existingExp.copyWith(
         organization: _organizationController.text.trim(),
         position: _positionController.text.trim(),
@@ -919,20 +955,11 @@ class _ExperienceTabState extends State<ExperienceTab> {
         endYear: _endYearController.text,
         description: _descriptionController.text.trim(),
       );
-
-      context
-          .read<CVProvider>()
-          .updateExperience(_editingIndex!, updatedExperience);
-
+      context.read<CVProvider>().updateExperience(_editingIndex!, updatedExperience);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Pengalaman berhasil diperbarui'),
-        ),
+        const SnackBar(content: Text('Pengalaman berhasil diperbarui')),
       );
-    }
-
-    // CREATE
-    else {
+    } else {
       final experience = Experience.create(
         organization: _organizationController.text.trim(),
         position: _positionController.text.trim(),
@@ -940,16 +967,11 @@ class _ExperienceTabState extends State<ExperienceTab> {
         endYear: _endYearController.text,
         description: _descriptionController.text.trim(),
       );
-
       context.read<CVProvider>().addExperience(experience);
-
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Pengalaman berhasil ditambahkan'),
-        ),
+        const SnackBar(content: Text('Pengalaman berhasil ditambahkan')),
       );
     }
-
     _clearForm();
   }
 
@@ -992,8 +1014,7 @@ class _ExperienceTabState extends State<ExperienceTab> {
                             TextButton(
                               onPressed: _clearForm,
                               child: Text('Batal',
-                                  style:
-                                      GoogleFonts.poppins(color: Colors.grey)),
+                                  style: GoogleFonts.poppins(color: Colors.grey)),
                             ),
                         ],
                       ),
@@ -1017,62 +1038,50 @@ class _ExperienceTabState extends State<ExperienceTab> {
                       Row(
                         children: [
                           Expanded(
-                            child: _YearPickerField(
+                            child: _YearPickerWithUntilNowField(
                               controller: _startYearController,
                               hint: 'Tahun Mulai',
+                              isEndYear: false,
                               validator: (v) {
                                 if (v == null || v.isEmpty) {
                                   return 'Wajib diisi';
                                 }
-
                                 final year = int.tryParse(v);
-
                                 if (year == null) {
                                   return 'Tahun tidak valid';
                                 }
-
                                 if (year > DateTime.now().year) {
                                   return 'Tidak boleh melebihi tahun sekarang';
                                 }
-
                                 if (year < 1950) {
                                   return 'Tahun tidak valid';
                                 }
-
                                 return null;
                               },
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: _YearPickerField(
+                            child: _YearPickerWithUntilNowField(
                               controller: _endYearController,
                               hint: 'Tahun Selesai',
+                              isEndYear: true,
                               validator: (v) {
                                 if (v == null || v.isEmpty) {
                                   return 'Wajib diisi';
                                 }
-
-                                final endYear = int.tryParse(v);
-                                final startYear =
-                                    int.tryParse(_startYearController.text);
-
-                                if (endYear == null) {
-                                  return 'Tahun tidak valid';
+                                if (v != "Sekarang") {
+                                  final endYear = int.tryParse(v);
+                                  if (endYear == null) {
+                                    return 'Tahun tidak valid';
+                                  }
+                                  if (endYear > DateTime.now().year) {
+                                    return 'Tidak boleh melebihi tahun sekarang';
+                                  }
+                                  if (endYear < 1950) {
+                                    return 'Tahun tidak valid';
+                                  }
                                 }
-
-                                if (endYear > DateTime.now().year) {
-                                  return 'Tidak boleh melebihi tahun sekarang';
-                                }
-
-                                if (endYear < 1950) {
-                                  return 'Tahun tidak valid';
-                                }
-
-                                if (startYear != null && endYear < startYear) {
-                                  return 'Tahun selesai tidak boleh sebelum tahun mulai';
-                                }
-
                                 return null;
                               },
                             ),
@@ -1115,16 +1124,12 @@ class _ExperienceTabState extends State<ExperienceTab> {
                         _startEdit(index, cvProvider.experiences[index]),
                     onDelete: () async {
                       final confirmed = await showDeleteConfirmation(context);
-
                       if (confirmed) {
                         cvProvider.removeExperience(index);
-
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text(
-                                'Pengalaman berhasil dihapus',
-                              ),
+                              content: Text('Pengalaman berhasil dihapus'),
                             ),
                           );
                         }
@@ -1163,86 +1168,55 @@ class _SkillTabState extends State<SkillTab> {
 
   void _addSkill() {
     final cvProvider = context.read<CVProvider>();
-
     String skillName = _skillController.text.trim();
 
-    // kosong
     if (skillName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Skill tidak boleh kosong'),
-        ),
+        const SnackBar(content: Text('Skill tidak boleh kosong')),
       );
       return;
     }
-
-    // minimal karakter
     if (skillName.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Skill minimal 2 karakter'),
-        ),
+        const SnackBar(content: Text('Skill minimal 2 karakter')),
       );
       return;
     }
-
-    // maksimal karakter
     if (skillName.length > 50) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Skill maksimal 50 karakter'),
-        ),
+        const SnackBar(content: Text('Skill maksimal 50 karakter')),
       );
       return;
     }
-
-    // hanya angka
     if (RegExp(r'^[0-9]+$').hasMatch(skillName)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Skill tidak boleh hanya angka'),
-        ),
+        const SnackBar(content: Text('Skill tidak boleh hanya angka')),
       );
       return;
     }
-
-    // simbol tidak valid
     if (!RegExp(r"^[a-zA-Z0-9\s\+\#\.\-]+$").hasMatch(skillName)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Skill mengandung karakter tidak valid'),
-        ),
+        const SnackBar(content: Text('Skill mengandung karakter tidak valid')),
       );
       return;
     }
 
-    // cek duplikat (case insensitive)
     bool isDuplicate = cvProvider.skills.any(
-      (skill) =>
-          skill.name.toLowerCase().trim() == skillName.toLowerCase().trim(),
+      (skill) => skill.name.toLowerCase().trim() == skillName.toLowerCase().trim(),
     );
 
     if (isDuplicate) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Skill sudah pernah ditambahkan'),
-        ),
+        const SnackBar(content: Text('Skill sudah pernah ditambahkan')),
       );
       return;
     }
 
-    final skill = Skill.create(
-      name: skillName,
-    );
-
+    final skill = Skill.create(name: skillName);
     cvProvider.addSkill(skill);
-
     _skillController.clear();
-
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Skill berhasil ditambahkan'),
-      ),
+      const SnackBar(content: Text('Skill berhasil ditambahkan')),
     );
   }
 
@@ -1320,19 +1294,12 @@ class _SkillTabState extends State<SkillTab> {
                           (index) => SkillChip(
                             label: cvProvider.skills[index].name,
                             onDelete: () async {
-                              final confirmed =
-                                  await showDeleteConfirmation(context);
-
+                              final confirmed = await showDeleteConfirmation(context);
                               if (confirmed) {
                                 cvProvider.removeSkill(index);
-
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Skill berhasil dihapus',
-                                      ),
-                                    ),
+                                    const SnackBar(content: Text('Skill berhasil dihapus')),
                                   );
                                 }
                               }
@@ -1387,21 +1354,16 @@ class _AchievementTabState extends State<AchievementTab> {
   void _submit() {
     if (_formKey.currentState!.validate()) {
       if (_editingIndex != null) {
-        // Untuk UPDATE: buat Achievement baru dengan ID yang sama
-        final existingAch =
-            context.read<CVProvider>().achievements[_editingIndex!];
+        final existingAch = context.read<CVProvider>().achievements[_editingIndex!];
         final updatedAchievement = Achievement(
           id: existingAch.id,
           title: _titleController.text,
           description: _descController.text,
         );
-        context
-            .read<CVProvider>()
-            .updateAchievement(_editingIndex!, updatedAchievement);
+        context.read<CVProvider>().updateAchievement(_editingIndex!, updatedAchievement);
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Penghargaan berhasil diperbarui')));
       } else {
-        // Untuk CREATE: gunakan Achievement.create()
         final ach = Achievement.create(
           title: _titleController.text,
           description: _descController.text,
@@ -1453,8 +1415,7 @@ class _AchievementTabState extends State<AchievementTab> {
                             TextButton(
                                 onPressed: _clearForm,
                                 child: Text('Batal',
-                                    style: GoogleFonts.poppins(
-                                        color: Colors.grey))),
+                                    style: GoogleFonts.poppins(color: Colors.grey))),
                         ],
                       ),
                       const SizedBox(height: 14),
@@ -1504,17 +1465,11 @@ class _AchievementTabState extends State<AchievementTab> {
                       onEdit: () => _startEdit(index, a),
                       onDelete: () async {
                         final confirmed = await showDeleteConfirmation(context);
-
                         if (confirmed) {
                           cvProvider.removeAchievement(index);
-
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Penghargaan berhasil dihapus',
-                                ),
-                              ),
+                              const SnackBar(content: Text('Penghargaan berhasil dihapus')),
                             );
                           }
                         }
@@ -1581,31 +1536,23 @@ class _PublicationTabState extends State<PublicationTab> {
     final journal = _journalController.text.trim();
     final url = _urlController.text.trim();
 
-    final isDuplicate =
-        context.read<CVProvider>().publications.asMap().entries.any((entry) {
+    final isDuplicate = context.read<CVProvider>().publications.asMap().entries.any((entry) {
       if (_editingIndex != null && entry.key == _editingIndex) {
         return false;
       }
-
       return entry.value.title.toLowerCase().trim() == title.toLowerCase() &&
           entry.value.year.trim() == year;
     });
 
     if (isDuplicate) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Publikasi tersebut sudah pernah ditambahkan',
-          ),
-        ),
+        const SnackBar(content: Text('Publikasi tersebut sudah pernah ditambahkan')),
       );
       return;
     }
     if (_formKey.currentState!.validate()) {
       if (_editingIndex != null) {
-        // Untuk UPDATE: buat Publication baru dengan ID yang sama
-        final existingPub =
-            context.read<CVProvider>().publications[_editingIndex!];
+        final existingPub = context.read<CVProvider>().publications[_editingIndex!];
         final updatedPublication = Publication(
           id: existingPub.id,
           title: title,
@@ -1613,13 +1560,10 @@ class _PublicationTabState extends State<PublicationTab> {
           year: year,
           url: url,
         );
-        context
-            .read<CVProvider>()
-            .updatePublication(_editingIndex!, updatedPublication);
+        context.read<CVProvider>().updatePublication(_editingIndex!, updatedPublication);
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Publikasi berhasil diperbarui')));
       } else {
-        // Untuk CREATE: gunakan Publication.create()
         final pub = Publication.create(
           title: title,
           journal: journal,
@@ -1673,8 +1617,7 @@ class _PublicationTabState extends State<PublicationTab> {
                             TextButton(
                                 onPressed: _clearForm,
                                 child: Text('Batal',
-                                    style: GoogleFonts.poppins(
-                                        color: Colors.grey))),
+                                    style: GoogleFonts.poppins(color: Colors.grey))),
                         ],
                       ),
                       const SizedBox(height: 14),
@@ -1699,37 +1642,31 @@ class _PublicationTabState extends State<PublicationTab> {
                           if (v == null || v.trim().isEmpty) {
                             return 'Nama jurnal wajib diisi';
                           }
-
                           if (v.trim().length < 3) {
                             return 'Nama jurnal terlalu pendek';
                           }
-
                           return null;
                         },
                       ),
                       const SizedBox(height: 12),
-                      _YearPickerField(
+                      _YearPickerWithUntilNowField(
                         controller: _yearController,
                         hint: 'Tahun Publikasi',
+                        isEndYear: false,
                         validator: (v) {
                           if (v == null || v.isEmpty) {
                             return 'Tahun publikasi wajib diisi';
                           }
-
                           final year = int.tryParse(v);
-
                           if (year == null) {
                             return 'Tahun tidak valid';
                           }
-
                           if (year < 1950) {
                             return 'Tahun tidak valid';
                           }
-
                           if (year > DateTime.now().year) {
                             return 'Tidak boleh melebihi tahun sekarang';
                           }
-
                           return null;
                         },
                       ),
@@ -1746,21 +1683,15 @@ class _PublicationTabState extends State<PublicationTab> {
                           if (v == null || v.trim().isEmpty) {
                             return 'DOI atau URL wajib diisi';
                           }
-
                           final value = v.trim();
-
-                          final isUrl =
-                              Uri.tryParse(value)?.hasAbsolutePath ?? false;
-
+                          final isUrl = Uri.tryParse(value)?.hasAbsolutePath ?? false;
                           final isDoi = RegExp(
                             r'^10\.\d{4,9}/[-._;()/:A-Z0-9]+$',
                             caseSensitive: false,
                           ).hasMatch(value);
-
                           if (!isUrl && !isDoi) {
                             return 'Masukkan URL atau DOI yang valid';
                           }
-
                           return null;
                         },
                       ),
@@ -1797,17 +1728,11 @@ class _PublicationTabState extends State<PublicationTab> {
                       onEdit: () => _startEdit(index, p),
                       onDelete: () async {
                         final confirmed = await showDeleteConfirmation(context);
-
                         if (confirmed) {
                           cvProvider.removePublication(index);
-
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Publikasi berhasil dihapus',
-                                ),
-                              ),
+                              const SnackBar(content: Text('Publikasi berhasil dihapus')),
                             );
                           }
                         }
