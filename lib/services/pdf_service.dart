@@ -190,7 +190,6 @@ class PDFService {
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            // Kolom Kiri (Lebih Sempit)
             pw.Expanded(
               flex: 4,
               child: pw.Column(
@@ -245,7 +244,6 @@ class PDFService {
             
             pw.SizedBox(width: 24),
             
-            // Kolom Kanan (Lebih Lebar)
             pw.Expanded(
               flex: 6,
               child: pw.Column(
@@ -277,7 +275,7 @@ class PDFService {
     ));
   }
 
-  // ==================== ATS TEMPLATE 2 (DENGAN FOTO PROFIL) ====================
+  // ==================== ATS TEMPLATE 2 ====================
   static void _buildAts2Template(
       pw.Document doc,
       String name,
@@ -298,7 +296,6 @@ class PDFService {
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.all(40),
       build: (context) => [
-        // Header dengan foto profil di kanan
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
@@ -398,16 +395,30 @@ class PDFService {
         if (pub.isNotEmpty) ...[
           _sectionHeaderAts2('PUBLIKASI'),
           pw.SizedBox(height: 10),
-          ...pub.map((p) => pw.Padding(
-            padding: const pw.EdgeInsets.only(bottom: 6),
-            child: pw.Text('• ${p.title} ${p.journal.isNotEmpty ? "(${p.journal})" : ""}', style: _regularStyle(size: 10), softWrap: true),
+          ...pub.map((p) => pw.Container(
+            margin: const pw.EdgeInsets.only(bottom: 12),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('• ${p.title}', style: _boldStyle(size: 10.5, color: _cPrimaryDark), softWrap: true),
+                if (p.journal.isNotEmpty || p.year.isNotEmpty)
+                  pw.Text('${p.journal} · ${p.year}', style: _regularStyle(size: 9, color: _cGrey600)),
+                if (p.url.isNotEmpty) ...[
+                  pw.SizedBox(height: 2),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.only(left: 8),
+                    child: pw.Text(p.url, style: _regularStyle(size: 8.5, color: _cPrimary), softWrap: true),
+                  ),
+                ],
+              ],
+            ),
           )),
         ],
       ],
     ));
   }
 
-// ==================== CREATIVE TEMPLATE 1 (FIXED COMPILER ERROR) ====================
+  // ==================== CREATIVE TEMPLATE 1 ====================
   static void _buildCreativeTemplate(
       pw.Document doc,
       String name,
@@ -425,18 +436,14 @@ class PDFService {
       pw.MemoryImage? photo) {
     
     doc.addPage(pw.MultiPage(
-      // Menggunakan pageTheme untuk menggambar background penuh lewat buildBackground
       pageTheme: pw.PageTheme(
         pageFormat: PdfPageFormat.a4,
         margin: pw.EdgeInsets.zero,
         buildBackground: (context) => pw.Container(
-          color: _cWhite, // Warna dasar halaman utama
+          color: _cWhite,
           child: pw.Row(
             children: [
-              pw.Container(
-                width: 190,
-                color: _cSecondary, // Warna sidebar kiri ditarik full dari atas sampai bawah kertas
-              ),
+              pw.Container(width: 190, color: _cSecondary),
             ],
           ),
         ),
@@ -444,7 +451,6 @@ class PDFService {
       build: (context) => [
         pw.Partitions(
           children: [
-            // Sidebar Kiri (Hanya Konten)
             pw.Partition(
               width: 190,
               child: pw.Container(
@@ -493,7 +499,6 @@ class PDFService {
               ),
             ),
             
-            // Konten Utama Kanan
             pw.Partition(
               child: pw.Container(
                 padding: const pw.EdgeInsets.all(30),
@@ -557,7 +562,6 @@ class PDFService {
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.all(35),
       build: (context) => [
-        // Top Header Banner
         pw.Container(
           padding: const pw.EdgeInsets.all(20),
           decoration: pw.BoxDecoration(
@@ -602,7 +606,6 @@ class PDFService {
         
         pw.SizedBox(height: 16),
         
-        // Contact Widget Box
         pw.Center(
           child: pw.Container(
             padding: const pw.EdgeInsets.symmetric(vertical: 10, horizontal: 16),
@@ -627,11 +630,9 @@ class PDFService {
         
         pw.SizedBox(height: 20),
         
-        // Split Column Modern Layout
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            // Left Column
             pw.Expanded(
               flex: 45,
               child: pw.Column(
@@ -661,7 +662,6 @@ class PDFService {
             
             pw.SizedBox(width: 20),
             
-            // Right Column
             pw.Expanded(
               flex: 55,
               child: pw.Column(
@@ -693,7 +693,7 @@ class PDFService {
     ));
   }
 
-  // ==================== WIDGET PEMBANTU KECIL ====================
+  // ==================== WIDGET PEMBANTU ====================
   
   static pw.Widget _contactText(String text) {
     return pw.Text(text, style: _regularStyle(size: 9.5, color: _cGrey600));
@@ -786,15 +786,23 @@ class PDFService {
     );
   }
   
+  // ==================== PUBLIKASI CARD DENGAN URL ====================
+  
   static pw.Widget _atsPublicationCard(Publication p) {
     return pw.Container(
-      margin: const pw.EdgeInsets.only(bottom: 8),
+      margin: const pw.EdgeInsets.only(bottom: 12),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text(p.title, style: _boldStyle(size: 10), softWrap: true),
+          pw.Text(p.title, style: _boldStyle(size: 10.5), softWrap: true),
           if (p.journal.isNotEmpty || p.year.isNotEmpty)
-            pw.Text('${p.journal} · ${p.year}', style: _italicStyle(size: 9)),
+            pw.Text('${p.journal} · ${p.year}', style: _italicStyle(size: 9.5)),
+          if (p.url.isNotEmpty) ...[
+            pw.SizedBox(height: 2),
+            pw.Text(p.url, style: _regularStyle(size: 8.5, color: _cPrimary), softWrap: true),
+          ],
+          pw.SizedBox(height: 4),
+          pw.Container(height: 1, color: _cGrey200),
         ],
       ),
     );
@@ -902,13 +910,17 @@ class PDFService {
   
   static pw.Widget _publicationCard(Publication p) {
     return pw.Container(
-      margin: const pw.EdgeInsets.only(bottom: 10),
+      margin: const pw.EdgeInsets.only(bottom: 12),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text(p.title, style: _boldStyle(size: 10), softWrap: true),
+          pw.Text(p.title, style: _boldStyle(size: 10.5), softWrap: true),
           if (p.journal.isNotEmpty || p.year.isNotEmpty)
-            pw.Text('${p.journal} · ${p.year}', style: _italicStyle(size: 9)),
+            pw.Text('${p.journal} · ${p.year}', style: _italicStyle(size: 9.5)),
+          if (p.url.isNotEmpty) ...[
+            pw.SizedBox(height: 2),
+            pw.Text(p.url, style: _regularStyle(size: 8.5, color: _cPrimary), softWrap: true),
+          ],
         ],
       ),
     );
@@ -982,13 +994,17 @@ class PDFService {
   
   static pw.Widget _publicationCardBlue(Publication p) {
     return pw.Container(
-      margin: const pw.EdgeInsets.only(bottom: 10),
+      margin: const pw.EdgeInsets.only(bottom: 12),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text(p.title, style: _boldStyle(size: 10), softWrap: true),
+          pw.Text(p.title, style: _boldStyle(size: 10.5, color: _cPrimaryDark), softWrap: true),
           if (p.journal.isNotEmpty || p.year.isNotEmpty)
-            pw.Text('${p.journal} · ${p.year}', style: _italicStyle(size: 9, color: _cGrey500)),
+            pw.Text('${p.journal} · ${p.year}', style: _italicStyle(size: 9, color: _cGrey600)),
+          if (p.url.isNotEmpty) ...[
+            pw.SizedBox(height: 2),
+            pw.Text(p.url, style: _regularStyle(size: 8.5, color: _cPrimary), softWrap: true),
+          ],
         ],
       ),
     );
