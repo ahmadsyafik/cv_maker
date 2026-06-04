@@ -355,40 +355,102 @@ class _PreviewPageState extends State<PreviewPage> {
       );
     }
 
-    // Render PDF — PdfPreview dari package printing supports pinch-zoom natively
-    // dan cross-platform (web, Android, iOS)
-    return PdfPreview(
-      // Key berubah hanya kalau bytes baru supaya tidak reload terus
-      key: ValueKey(_lastFingerprint),
-      build: (format) => _pdfBytes!,
-      useActions: false,
-      canChangePageFormat: false,
-      canChangeOrientation: false,
-      canDebug: false,
-      allowSharing: false,
-      allowPrinting: false,
-      initialPageFormat: PdfPageFormat.a4,
-      maxPageWidth: 900,
-      // Enable zoom
-      scrollViewDecoration: BoxDecoration(color: Colors.grey.shade300),
-      pdfPreviewPageDecoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(4),
-        boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 2)),
-        ],
-      ),
-      onError: (context, error) => Center(
-        child: Column(
+    // Render PDF with double-tap hint - PdfPreview already supports pinch zoom natively
+    return Stack(
+      children: [
+        PdfPreview(
+          key: ValueKey(_lastFingerprint),
+          build: (format) => _pdfBytes!,
+          useActions: false,
+          canChangePageFormat: false,
+          canChangeOrientation: false,
+          canDebug: false,
+          allowSharing: false,
+          allowPrinting: false,
+          initialPageFormat: PdfPageFormat.a4,
+          maxPageWidth: 900,
+          scrollViewDecoration: BoxDecoration(color: Colors.grey.shade300),
+          pdfPreviewPageDecoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(4),
+            boxShadow: const [
+              BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 2)),
+            ],
+          ),
+          onError: (context, error) => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                const SizedBox(height: 8),
+                Text('Error: $error',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 12)),
+              ],
+            ),
+          ),
+        ),
+        // Floating hint for zoom (disappears after 3 seconds)
+        Positioned(
+          bottom: 20,
+          left: 0,
+          right: 0,
+          child: GestureDetector(
+            onTap: () {
+              _showZoomHint();
+            },
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.8),
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.touch_app, color: Colors.white, size: 18),
+                  SizedBox(width: 8),
+                  Text(
+                    'Tap 2 kali untuk mengaktifkan mode zoom',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showZoomHint() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.red),
-            const SizedBox(height: 8),
-            Text('Error: $error',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12)),
+            Icon(Icons.zoom_in, color: Colors.white, size: 18),
+            SizedBox(width: 8),
+            Text('Gunakan 2 jari untuk zoom in/out (pinch gesture)'),
           ],
         ),
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.black87,
+        width: 350,
       ),
     );
   }
