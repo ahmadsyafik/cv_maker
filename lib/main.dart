@@ -1,4 +1,3 @@
-import 'package:device_preview/device_preview.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -30,7 +29,7 @@ Future<void> main() async {
     debugPrint('❌ Firebase initialization error: $e');
   }
 
-  runApp(DevicePreview(builder: (context) => const MyApp()));
+  runApp (const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -45,7 +44,7 @@ class MyApp extends StatelessWidget {
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        title: 'CV Builder Mahasiswa',
+        title: 'CV Maker',
         theme: _buildTheme(),
         home: const AuthWrapper(),
         routes: {
