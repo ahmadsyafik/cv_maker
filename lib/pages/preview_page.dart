@@ -147,7 +147,7 @@ class _PreviewPageState extends State<PreviewPage> {
                           CVTemplate.ats,
                           'ATS Friendly v1',
                           Icons.description_outlined,
-                          'Single-column bersih, foto kiri atas'),
+                          'Foto tengah, layout dua kolom rapi dan ATS-friendly'),
                       const SizedBox(height: 10),
                       _templateTile(
                           ctx,
@@ -155,7 +155,7 @@ class _PreviewPageState extends State<PreviewPage> {
                           CVTemplate.ats2,
                           'ATS Friendly v2',
                           Icons.article_outlined,
-                          'Header navy gelap, layout profesional'),
+                          'Header sederhana dengan foto kanan, format profesional'),
                       const SizedBox(height: 10),
                       _templateTile(
                           ctx,
@@ -163,7 +163,7 @@ class _PreviewPageState extends State<PreviewPage> {
                           CVTemplate.creative,
                           'Creative v1',
                           Icons.palette_outlined,
-                          'Sidebar biru, dua kolom elegan'),
+                          'Sidebar navy elegan, tampilan modern dua kolom'),
                       const SizedBox(height: 10),
                       _templateTile(
                           ctx,
@@ -171,7 +171,7 @@ class _PreviewPageState extends State<PreviewPage> {
                           CVTemplate.creative2,
                           'Creative v2',
                           Icons.brush_outlined,
-                          'Header merah, dua kolom modern'),
+                          'Header biru gradien, desain modern dan menarik'),
                       const SizedBox(height: 16),
                     ],
                   ),

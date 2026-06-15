@@ -262,10 +262,6 @@ class _BuilderPageState extends State<BuilderPage>
         backgroundColor: _kBlue,
         elevation: 0,
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
         title: Text('Buat CV',
             style: GoogleFonts.poppins(
                 fontSize: 18,
